@@ -7,6 +7,7 @@ import xlrd
 import xlwt
 
 #-----------------------------------------------------------------------------------------#
+#fontions principales:
 
 # fonction pour récupérer les données utiles de l'insee
 def insee():
@@ -69,7 +70,7 @@ def Excel(nom):
 # fonction pour afficher la deuxième fenetre
 def Window2():
 
-    def Window3():
+    def Window3(var):
         newWindow2 = Tk()
         newWindow2.title('Vérification des critères')
         newWindow2.geometry('600x600')
@@ -77,9 +78,13 @@ def Window2():
         newWindow2.minsize(480,360)
         newWindow.destroy()
 
-        btn_verif = Button(newWindow, text='Suivant', bg='black', fg='white', command = lambda: VerificationCritere(var))
+        # bouton pour vérifier selon les critères
+        btn_verif = Button(newWindow2, text='Suivant', bg='black', fg='white', command = lambda: VerificationCritere(var))
         btn_verif.pack()
         btn_verif.place(relx=0.5, rely=0.5, anchor=CENTER)
+
+        newWindow2.mainloop()
+        conn.close()
 
     newWindow = Tk()
     newWindow.title('Création du fichier excel')
@@ -90,9 +95,11 @@ def Window2():
     
     insee() 
     
+    # texte d'indication
     TextNameFile = Label(newWindow,text='Nom du fichier :')
     TextNameFile.place(relx=0.5, rely=0.15, anchor= E)
     
+    # Saisi du nom
     EntryNameFile = Entry(newWindow, bd=3)
     EntryNameFile.place(relx=0.5, rely=0.15, anchor = W)
 
@@ -103,21 +110,21 @@ def Window2():
             btn_save['state'] = NORMAL
         else:
             btn_save['state'] = DISABLED
-        
+    
+    # bouton pour mettre a jour le string saisi et sauvegarder dans une variable
     btn_ok = Button(newWindow, text='Ok', bg='black', fg='white', command = lambda: ok())
     btn_ok.pack()
     btn_ok.place(relx=0.5, rely=0.2, anchor=CENTER)
 
-    # bouton
+    # bouton pour sauvegarder le fichier excel
     btn_save = Button(newWindow, text='Créer le fichier', bg='black', fg='white', command = lambda: Excel(var), state= DISABLED)
     btn_save.pack()
     btn_save.place(relx=0.5, rely=0.4, anchor=CENTER)
 
-    btn_next = Button(newWindow, text='Suivant', bg='black', fg='white', command = lambda: Window3(), state= DISABLED)
+    # bouton pour passer a la troisième fenetre
+    btn_next = Button(newWindow, text='Suivant', bg='black', fg='white', command = lambda: Window3(var), state= NORMAL)
     btn_next.pack()
     btn_next.place(relx=0.8, rely=0.9)
-
-    
 
     newWindow.mainloop()
     
@@ -149,4 +156,4 @@ btn_next.pack()
 btn_next.place(relx=0.8, rely=0.9)
 
 fenetre.mainloop()
-conn.close()
+
