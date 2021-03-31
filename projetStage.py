@@ -4,8 +4,11 @@ import pypyodbc
 import datetime
 import csv
 
+
+NameBase = 'GDR' # nom de votre base ODBC
+
 fenetre =Tk() # initialisation de la fenetre
-fenetre.title('Connexion a GDR') # nom de la fenetre
+fenetre.title('Connexion a %s' % NameBase) # nom de la fenetre
 
 fenetre.geometry('600x600') # taille de la fenetre
 fenetre.configure(bg='#36A679') # couleur du fond
@@ -15,12 +18,12 @@ fenetre.minsize(480,360) # taille minimum de la fenetre
 CheminFile = StringVar() # déclaration de la variable string
 
 CheminFile.set("connexion en cours")
-conn = pypyodbc.connect('DSN=GDR;')  # initialisation de la connexion au serveur
+conn = pypyodbc.connect(DSN=NameBase)  # initialisation de la connexion au serveur
 cur = conn.cursor()
 CheminFile.set("connexion ok") 
 
 def insee():
-    CodeInsee = []
+    CodeInsee = [] 
     CommInsee = []
 
     # récupération des code communes de l'insee
