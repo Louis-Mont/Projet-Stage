@@ -22,6 +22,12 @@ def insee():
         CodeInsee.append(Code) # insertion des code dans le tableau CodeInsee
         CommInsee.append(Comm) # insertion des communes dans le tableau CommInsee
 
+def VerificationCritere(nom):
+    File = xlrd.open_workbook('C:/Users/david/Desktop/ProjetStage/%s.xls' % nom)
+
+    test = File.sheet_by_name('Collecte')
+
+    # Col? =(test.col(?))
 
 def Excel(nom):
     global FeuilleCollect
@@ -62,6 +68,19 @@ def Excel(nom):
 
 # fonction pour afficher la deuxième fenetre
 def Window2():
+
+    def Window3():
+        newWindow2 = Tk()
+        newWindow2.title('Vérification des critères')
+        newWindow2.geometry('600x600')
+        newWindow2.configure(bg='#36A679')
+        newWindow2.minsize(480,360)
+        newWindow.destroy()
+
+        btn_verif = Button(newWindow, text='Suivant', bg='black', fg='white', command = lambda: VerificationCritere(var))
+        btn_verif.pack()
+        btn_verif.place(relx=0.5, rely=0.5, anchor=CENTER)
+
     newWindow = Tk()
     newWindow.title('Création du fichier excel')
     newWindow.geometry('600x600')
@@ -77,8 +96,6 @@ def Window2():
     EntryNameFile = Entry(newWindow, bd=3)
     EntryNameFile.place(relx=0.5, rely=0.15, anchor = W)
 
-    
-    
     def ok():
         global var
         var = EntryNameFile.get()
@@ -87,16 +104,18 @@ def Window2():
         else:
             btn_save['state'] = DISABLED
         
-        
-
     btn_ok = Button(newWindow, text='Ok', bg='black', fg='white', command = lambda: ok())
     btn_ok.pack()
     btn_ok.place(relx=0.5, rely=0.2, anchor=CENTER)
 
     # bouton
-    btn_save  = Button(newWindow, text='Créer le fichier', bg='black', fg='white', command = lambda: Excel(var), state= DISABLED)
+    btn_save = Button(newWindow, text='Créer le fichier', bg='black', fg='white', command = lambda: Excel(var), state= DISABLED)
     btn_save.pack()
     btn_save.place(relx=0.5, rely=0.4, anchor=CENTER)
+
+    btn_next = Button(newWindow, text='Suivant', bg='black', fg='white', command = lambda: Window3(), state= DISABLED)
+    btn_next.pack()
+    btn_next.place(relx=0.8, rely=0.9)
 
     
 
@@ -118,8 +137,6 @@ CheminFile.set("connexion en cours")
 conn = pypyodbc.connect(DSN=NameBase)  # initialisation de la connexion au serveur
 cur = conn.cursor()
 CheminFile.set("connexion ok") 
-
-cur.execute('SELECT ville FROM Client')
 
 # texte qui affiche à l'utilisateur si il est connecté ou non
 barre = Label(fenetre, textvariable=CheminFile)
