@@ -21,13 +21,17 @@ CheminFile.set("connexion ok")
 
 def insee():
     CodeInsee = []
+    CommInsee = []
 
     # récupération des code communes de l'insee
     fileInsee = 'C:/Users/david/Desktop/ProjetStage/communes2020.csv' # chemin du .csv (à changer par rapport à la date)
     Lecture = csv.reader(open(fileInsee, "r", encoding='utf-8'), delimiter=',')
     for row in Lecture:
-        ligne = row[1], row[7]
-        CodeInsee.append(ligne) # insertion de la colonne code et nom de commune dans un tableau
+        Code = row[1] # on récupère les code de l'insee
+        Comm = row[7] # on récupère les communes de l'insee
+        CodeInsee.append(Code) # insertion des code dans le tableau CodeInsee
+        CommInsee.append(Comm) # insertion des communes dans le tableau CommInsee
+    
 
 
 # fonction pour afficher la deuxième fenetre
@@ -41,7 +45,7 @@ def Agregation():
     
     insee()
 
-    """     
+    """
     TextValidationInsee = Text(newWindow)
     TextValidationInsee.insert(1.0, )
     TextValidationInsee.pack()
