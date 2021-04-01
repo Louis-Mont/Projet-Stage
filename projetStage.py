@@ -2,8 +2,7 @@
 import pypyodbc
 import datetime
 import csv
-import xlrd
-import xlwt
+import sqlite3
 
 #-----------------------------------------------------------------------------------------#
 #fontions principales:
@@ -22,9 +21,70 @@ def insee():
         Comm = row[7] # on récupère les communes de l'insee
         CodeInsee[Comm] = Code # insertion des codes dans le dictionnaire par rapport à la commune
 
-    print('Lecture terminé')
+    print('Lecture terminé\n')
     return CodeInsee
+
+def CreateDatabase():
+
+    try:
+        connect = sqlite3.connect('C:/Users/david/Desktop/ProjetStage/test.db') # connexion à la database
+        curSQL = connect.cursor()
+        print("Base de données connectée à SQLite")
     
+        CreateTableVente = """CREATE TABLE if not exists Vente (
+                                Id_vente INTEGER NOT NULL PRIMARY KEY,
+                                Id_Produits INTEGER NOT NULL,
+                                Commune_orig TEXT,
+                                Code_postal_orig TEXT,
+                                Code_insee INTEGER NOT NULL,
+                                Flux TEXT,
+                                Categorie TEXT,
+                                Sous_categorie TEXT,
+                                Montant_HT REAL,
+                                Montant_TTC REAL,
+                                Date_vente DATE,
+                                CONSTRAINT Id_produits_fk FOREIGN KEY(Id_Produits) REFERENCES Produits(Id_Produits)
+                            );"""
+
+        CreateTableLigne_Vente = """CREATE TABLE if not exists Ligne_Vente (
+                                Id_collecte INTEGER NOT NULL,
+                                Id_vente INTEGER NOT NULL,
+                                CONSTRAINT Id_collecte_fk FOREIGN KEY(Id_collecte) REFERENCES Collecte(Id_collecte),
+                                CONSTRAINT Id_vente_fk FOREIGN KEY(Id_vente) REFERENCES Vente(Id_vente)
+                            );"""
+
+        CreateTableCollecte = """CREATE TABLE if not exists Collecte (
+                                Id_collecte INTEGER NOT NULL PRIMARY KEY,
+                                Date_arrivage DATE,
+                                Orig_arrivage TEXT,
+                                Code_insee INTEGER NOT NULL,
+                                Flux TEXT,
+                                Categorie TEXT,
+                                Sous_categorie TEXT,
+                                Qte INTEGER,
+                                Poids REAL,
+                                Affectation TEXT
+                            );""" # affectation = orientation (rebuts, valorisé, ...)
+                                
+        CreateTableProduit = """CREATE TABLE if not exists Produits (
+                                Id_Produits INTEGER NOT NULL PRIMARY KEY,
+                                Nbr_produit INTEGER,
+                                Poids_produits REAL
+                            );"""                                             
+
+        curSQL.execute(CreateTableVente)
+        curSQL.execute(CreateTableLigne_Vente)
+        curSQL.execute(CreateTableCollecte)
+        curSQL.execute(CreateTableProduit)
+
+
+        curSQL.close()
+        conn.close()
+        print("La connexion SQLite est fermée")
+    except sqlite3.Error as error:
+        print("Erreur lors de la connexion à SQLite", error)
+
+
 """
 def VerificationCritere(nom):
     File = xlrd.open_workbook('C:/Users/david/Desktop/ProjetStage/%s.xls' % nom)
@@ -57,14 +117,16 @@ def Excel(nom):
     FileExcel.save('C:/Users/david/Desktop/ProjetStage/%s.xls' % nom) # chemin pour sauvegarder le fichier
 """
 
-
 NameBase = 'GDR' # nom de votre base ODBC
 
-print("connexion en cours")
+print("\nconnexion en cours à la base GDR")
 conn = pypyodbc.connect(DSN=NameBase)  # initialisation de la connexion au serveur
-cur = conn.cursor()
-print("connexion ok") 
+curGDR = conn.cursor()
+print("connexion ok\n") 
 
 Code = insee() # récupération des codes dans une variable
+CreateDatabase()
 
-print(Code['Froissy']) # test
+# print(Code['Froissy']) 
+
+curGDR.close()
