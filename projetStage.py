@@ -80,19 +80,19 @@ def InsertionInsee():
     for row in Lecture:
         Code = row[1] # on récupère les code de l'insee
         Comm = row[7] # on récupère les communes de l'insee
-        curSQL.execute('INSERT INTO Code_Insee (Code, Commune) VALUES (?, ?)', (Code, Comm)) # insertion des codes dans le dictionnaire par rapport à la commune
+        curSQL.execute('INSERT INTO Code_Insee (Code, Commune) VALUES (?, ?)', (Code, Comm)) # insertion des codes insee dans la bdd
    
     print('Lecture terminé\n')
 
 #--------------------------------------------------------------------------------------------------------------
 # Code principal
 
-NameBase = 'GDR' # nom de votre base ODBC
+NameBase = 'GDR' # nom du serveur
 
 print("\nconnexion en cours à la base GDR")
 conn = pypyodbc.connect(DSN=NameBase)  # initialisation de la connexion au serveur
 curGDR = conn.cursor()
-print("connexion ok\n") 
+print("connexion ok\n")
 
 try:
     connect = sqlite3.connect('C:/Users/david/Desktop/ProjetStage/test.db') # connexion à la database
@@ -104,11 +104,10 @@ try:
     InsertionInsee()
 
     curSQL.close()
+
     conn.close()
     print("La connexion SQLite est fermée")
 except sqlite3.Error as error:
     print("Erreur lors de la connexion à SQLite", error)
-
-# print(Code['Froissy']) 
 
 curGDR.close()
