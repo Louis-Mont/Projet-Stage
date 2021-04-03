@@ -1,11 +1,25 @@
-
 import pypyodbc
 import datetime
 import csv
 import sqlite3
+import easygui
+import pandas as pd
+import openpyxl
 
 #-----------------------------------------------------------------------------------------#
 #fontions principales:
+
+# fonction pour convertir le fichier insee xlsm en csv
+def Convert():
+
+    file = easygui.fileopenbox() # l'utilisateur va chercher le fichier .xlsm dans son pc
+    workbook = pd.read_excel(file)
+    print ("Veuillez saisir le nom de votre fichier csv :")
+    NameCSV=input() + '.csv'
+
+    FileInsee = workbook.to_csv(NameCSV, index=False) # conversion du fichier en .csv
+
+    return NameCSV
 
 # fonction pour créer les tables de la BDD
 def CreateTable():
@@ -70,16 +84,15 @@ def CreateTable():
     curSQL.execute(CreateTableInsee)
 
 # fonction pour récupérer et insérer les codes insee dans la BDD
-def InsertionInsee():
+def InsertionInsee(FileInsee):
 
     print('\nLecture des codes insee...')
-    fileInsee = 'C:/Users/david/Desktop/ProjetStage/communes2020.csv' # chemin du document de l'insee (.csv le format)
 
-    Lecture = csv.reader(open(fileInsee, "r", encoding='utf-8'), delimiter=',')
+    Lecture = csv.reader(open(FileInsee, "r", encoding='utf-8'), delimiter=',')
     next(Lecture, None) # on retire l'en-tete
     for row in Lecture:
-        Code = row[1] # on récupère les code de l'insee
-        Comm = row[7] # on récupère les communes de l'insee
+        Code = row[0] # on récupère les code de l'insee
+        Comm = row[1] # on récupère les communes de l'insee
         curSQL.execute('INSERT INTO Code_Insee (Code, Commune) VALUES (?, ?)', (Code, Comm)) # insertion des codes insee dans la bdd
    
     print('Lecture terminé\n')
@@ -94,6 +107,10 @@ conn = pypyodbc.connect(DSN=NameBase)  # initialisation de la connexion au serve
 curGDR = conn.cursor()
 print("connexion ok\n")
 
+print ("fichier xlsm en cours de conversion...")
+FileInsee = Convert()
+print ("fichier xlsm convertit en csv avec succès !\n")
+
 try:
     connect = sqlite3.connect('C:/Users/david/Desktop/ProjetStage/test.db') # connexion à la database
     curSQL = connect.cursor()
@@ -101,7 +118,7 @@ try:
     
     CreateTable()
 
-    InsertionInsee()
+    InsertionInsee(FileInsee)
 
     curSQL.close()
 
