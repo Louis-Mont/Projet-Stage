@@ -100,10 +100,8 @@ def InsertionInsee(FileInsee):
 #--------------------------------------------------------------------------------------------------------------
 # Code principal
 
-NameBase = 'GDR' # nom du serveur
-
-print("\nconnexion en cours à la base GDR")
-conn = pypyodbc.connect(DSN=NameBase)  # initialisation de la connexion au serveur
+print("\nconnexion en cours à GDR")
+conn = pypyodbc.connect(DSN='GDR')  # initialisation de la connexion au serveur
 curGDR = conn.cursor()
 print("connexion ok\n")
 
@@ -111,8 +109,9 @@ print ("fichier xlsm en cours de conversion...")
 FileInsee = Convert()
 print ("fichier xlsm convertit en csv avec succès !\n")
 
+CheminBDD = easygui.filesavebox() + '.db'
 try:
-    connect = sqlite3.connect('C:/Users/david/Desktop/ProjetStage/test.db') # connexion à la database
+    connect = sqlite3.connect(CheminBDD) # connexion à la database
     curSQL = connect.cursor()
     print("Base de données connectée à SQLite")
     
