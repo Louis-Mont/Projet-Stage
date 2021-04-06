@@ -17,7 +17,7 @@ def Convert():
     print ("Veuillez saisir le nom de votre fichier csv :")
     NameCSV=input() + '.csv'
 
-    FileInsee = workbook.to_csv(NameCSV, index=False) # conversion du fichier en .csv
+    workbook.to_csv(NameCSV, index=False) # conversion du fichier en .csv
 
     return NameCSV
 
@@ -73,21 +73,25 @@ def CreateTable():
     CreateTableCat = """CREATE TABLE if not exists Categorie (
                                 Id_Cat INTEGER NOT NULL PRIMARY KEY,
                                 Categorie TEXT
-                            );"""                                                   
-                                
-    CreateTableLot = """CREATE TABLE if not exists Lots (
-                                Id_Lots INTEGER NOT NULL PRIMARY KEY,
-                                Id_Ligne_Vente INTEGER NOT NULL,
-                                Nbr_produit INTEGER,
-                                Poids_produits REAL
-                            );"""                                             
+                            );"""
 
+    CreateTableOrig = """CREATE TABLE if not exists Origine (
+                                Id_Orig INTEGER NOT NULL PRIMARY KEY,
+                                Origine TEXT
+                            );"""
+
+    CreateTableFlux = """CREATE TABLE if not exists Flux (
+                                Id_Flux INTEGER NOT NULL PRIMARY KEY,
+                                Flux TEXT
+                            );"""                                                                                                    
+                                                                           
     #curSQL.execute(CreateTableVente)
     #curSQL.execute(CreateTableLigne_Vente)
     #curSQL.execute(CreateTableCollecte)
-    #curSQL.execute(CreateTableLot)
     curSQL.execute(CreateTableInsee)
     curSQL.execute(CreateTableCat)
+    curSQL.execute(CreateTableOrig)
+    curSQL.execute(CreateTableFlux)
 
 # fonction pour récupérer et insérer les codes insee dans la BDD
 def InsertionInsee(FileInsee):
@@ -105,7 +109,7 @@ def InsertionInsee(FileInsee):
 
 def InsertionCat():
 
-    print('\nInsertion des catégories dans la base...')
+    print('Insertion des catégories dans la base...')
     cat = {'Mobilier':1, 'Electroménager':2, 'Culture':3, 'Bibelots, vaisselle':4, 'Textiles':5, 'Informatique et multimédia':6, 'Jeux et jouets':7, 'Bricolage et jardin':8, 'Sports et loisirs':9, 'Décoration':10, 'Cycles':11, 'Mobilier pro':12, 'Autres':13}
 
     for i in cat.items():
@@ -113,6 +117,37 @@ def InsertionCat():
                             VALUES (?,?)''', (i))
    
     print('Insertion terminé\n')
+
+def InsertionOrig():
+
+    print('Insertion des origines dans la base...')
+    orig = {'Apport sur Site':1, 'Rendez-Vous':2,'Déchèterie':3, 'Tournée':4}
+
+    for i in orig.items():
+        curSQL.execute('''INSERT INTO Origine (Origine, Id_Orig)
+                            VALUES (?,?)''', (i))
+   
+    print('Insertion terminé\n')
+
+def InsertionFlux():
+
+    print('Insertion des flux dans la base...')
+    curGDR.execute('SELECT IDFlux, Flux FROM Flux')
+    flux = curGDR.fetchall()
+
+    for i in flux:
+        curSQL.execute('''INSERT INTO Flux (Id_Flux, Flux)
+                            VALUES (?, ?)''', (i))
+   
+    print('Insertion terminé\n')
+
+
+def VerifCat():
+    Mobilier = ['MEUBLES','MOBILIER','AMEUBLEMENT','IMMOBILIER']
+    Electromenager = ['ELECTROMENAGER', 'ELECTROMENAGERS','APPAREILS']
+    Culture = ['CULTURE', 'LIBRAIRIE', 'VIDEOS', 'DISQUES', 'LECTURE', 'LIVRES', 'LITTERATURE']
+    BibelotVaiss = ['BIBELOTS', 'VAISSELLE', '']
+    MobilierPro = ['pro', 'PRO', ' professionnel', 'PROFESSIONNEL']
 
 #--------------------------------------------------------------------------------------------------------------
 # Code principal
@@ -132,13 +167,13 @@ if(reponse == "O"):
 elif(reponse == "N"):
     print ("Sélectionner votre fichier csv")
     FileInsee = easygui.fileopenbox()
-    print ("Fichier sélectionné")
+    print ("Fichier sélectionné\n")
 
 # partie base de donnée
 print ("Voulez-vous créer une base de données ? [O/N]")
 reponse = input()
 if(reponse == "O"):
-    print ("Veuillez choisir l'emplacement de votre base de données :\n")
+    print ("Veuillez choisir l'emplacement de votre base de données :")
     CheminBDD = easygui.filesavebox() + '.db'
     print ("base de données créée avec succès !\n")
 elif(reponse == "N"):
@@ -154,7 +189,9 @@ try:
     CreateTable()# création des tables 
 
     InsertionInsee(FileInsee)# insertion des données INSEE dans la base
-    InsertionCat()
+    InsertionCat()# insertion des catégories
+    InsertionOrig()# insertion des origines d'arrivage
+    InsertionFlux()
 
     curSQL.close()
 
