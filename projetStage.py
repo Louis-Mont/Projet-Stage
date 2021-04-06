@@ -105,19 +105,38 @@ conn = pypyodbc.connect(DSN='GDR')  # initialisation de la connexion au serveur
 curGDR = conn.cursor()
 print("connexion ok\n")
 
-print ("fichier xlsm en cours de conversion...")
-FileInsee = Convert()
-print ("fichier xlsm convertit en csv avec succès !\n")
+# partie fichier INSEE
+print ("Voulez-vous convertir votre fichier xlsm ? [O/N]")
+reponse = input()
+if(reponse == "O"):
+    print ("fichier xlsm en cours de conversion...")
+    FileInsee = Convert()
+    print ("fichier xlsm convertit en csv avec succès !\n")
+elif(reponse == "N"):
+    print ("Sélectionner votre fichier csv")
+    FileInsee = easygui.fileopenbox()
+    print ("Fichier sélectionné")
 
-CheminBDD = easygui.filesavebox() + '.db'
+# partie base de donnée
+print ("Voulez-vous créer une base de données ? [O/N]")
+reponse = input()
+if(reponse == "O"):
+    print ("Veuillez choisir l'emplacement de votre base de données :\n")
+    CheminBDD = easygui.filesavebox() + '.db'
+    print ("base de données créée avec succès !\n")
+elif(reponse == "N"):
+    print ("Veuillez vous connecter à la base de données :\n")
+    CheminBDD = easygui.fileopenbox()
+    
+print ("Connexion de la base de données...\n")
 try:
     connect = sqlite3.connect(CheminBDD) # connexion à la database
     curSQL = connect.cursor()
     print("Base de données connectée à SQLite")
     
-    CreateTable()
+    CreateTable()# création des tables 
 
-    InsertionInsee(FileInsee)
+    InsertionInsee(FileInsee)# insertion des données INSEE dans la base
 
     curSQL.close()
 
