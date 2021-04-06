@@ -68,7 +68,12 @@ def CreateTable():
                                 Id_Insee INTEGER NOT NULL PRIMARY KEY,
                                 Code INTEGER,
                                 Commune TEXT
-                            );"""                       
+                            );"""
+                            
+    CreateTableCat = """CREATE TABLE if not exists Categorie (
+                                Id_Cat INTEGER NOT NULL PRIMARY KEY,
+                                Categorie TEXT
+                            );"""                                                   
                                 
     CreateTableLot = """CREATE TABLE if not exists Lots (
                                 Id_Lots INTEGER NOT NULL PRIMARY KEY,
@@ -82,6 +87,7 @@ def CreateTable():
     #curSQL.execute(CreateTableCollecte)
     #curSQL.execute(CreateTableLot)
     curSQL.execute(CreateTableInsee)
+    curSQL.execute(CreateTableCat)
 
 # fonction pour récupérer et insérer les codes insee dans la BDD
 def InsertionInsee(FileInsee):
@@ -96,6 +102,17 @@ def InsertionInsee(FileInsee):
         curSQL.execute('INSERT INTO Code_Insee (Code, Commune) VALUES (?, ?)', (Code, Comm)) # insertion des codes insee dans la bdd
    
     print('Lecture terminé\n')
+
+def InsertionCat():
+
+    print('\nInsertion des catégories dans la base...')
+    cat = {'Mobilier':1, 'Electroménager':2, 'Culture':3, 'Bibelots, vaisselle':4, 'Textiles':5, 'Informatique et multimédia':6, 'Jeux et jouets':7, 'Bricolage et jardin':8, 'Sports et loisirs':9, 'Décoration':10, 'Cycles':11, 'Mobilier pro':12, 'Autres':13}
+
+    for i in cat.items():
+        curSQL.execute('''INSERT INTO Categorie (Categorie, Id_Cat)
+                            VALUES (?,?)''', (i))
+   
+    print('Insertion terminé\n')
 
 #--------------------------------------------------------------------------------------------------------------
 # Code principal
@@ -137,6 +154,7 @@ try:
     CreateTable()# création des tables 
 
     InsertionInsee(FileInsee)# insertion des données INSEE dans la base
+    InsertionCat()
 
     curSQL.close()
 
