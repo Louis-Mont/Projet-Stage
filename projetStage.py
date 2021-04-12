@@ -5,59 +5,40 @@ import sqlite3
 import xlrd
 import pandas as pd
 import unidecode
-from xlwt import Workbook, easyxf
 
 #-----------------------------------------------------------------------------------------#
 #fontions principales:
 
-def RecupInsee():
-    print("Récupération des codes Insee...")
-    NameFile = 'BD INSEE 2020'
-    CodeInsee = {}
-    ClasseurInsee = pd.read_excel(NameFile +'.xlsm')
-    ClasseurInsee.to_csv(NameFile+'.csv', index=False)
-    test=csv.reader(open(NameFile+'.csv', "r", encoding='utf-8'), delimiter=',')
-    next(test, None)
-    for row in test:
-        Code = row[0] # on récupère les code de l'insee
-        Comm = row[1].upper().replace("-", " ").replace("'", "") # on récupère les communes de l'insee
-        Comm = unidecode.unidecode(Comm)
-        CodeInsee[Comm] = Code
-    print('Récupération terminée !\n')
-    #print(CodeInsee)
+def insertComm():
+    curGDR.execute("SELECT Commune, CodePostal FROM Commune")
+    CommuneList = curGDR.fetchall()
 
-def Collecte(classeur, style):
-    Collect = {0:"id produit", 
-                1:"id arrivage", 
-                2:"Date arrivage",
-                3:"Origine arrivage",
-                4:"si déchèterie : nom de la déchèterie; si apport sur site ou rendez-vous = nom de la commune d'origine",
-                5:"Code insee",
-                6:"Flux",
-                7:"Catégorie",
-                8:"Quantité",
-                9:"Poids",
-                10:"Affectation"}
+    curSQL.execute("SELECT Id_Recyclerie FROM Organisation WHERE Recyclerie = ?", (RecyclerieNomGDR))
+    id_Comm = curSQL.fetchone()
+    for row in id_Comm:
+        ID_Comm = row
 
-    CollectSheet = classeur.add_sheet("BD_Collecte")
-    for col, title in Collect.items():
-        CollectSheet.write(0, col, title, style)
+    
 
-def Vente(classeur, style):
+    for row in CommuneList:
+        Commune = row[0].upper()
+        Commune = unidecode.unidecode(Commune)
+        CodePostal = row[1]
+        curSQL.execute("SELECT Id_Insee FROM Insee WHERE Commune = (?)", (Commune,))
+        id_insee = curSQL.fetchone()
+        for row2 in id_insee:
+            ID_insee = row2
+        curSQL.execute("INSERT INTO Commune (Commune, Code_postal, Id_Recyclerie, Id_Insee) VALUES (?,?,?,?)", (Commune, CodePostal, ID_Comm, ID_insee))
+        connect.commit()
 
-    Vente = {0:"id vente",
-                1:"Code postal",
-                2:"Code insee",
-                3:"Flux",
-                4:"Catégorie",
-                5:"Nombre de produit",
-                6:"Poids des produits",
-                7:"Montant HT",
-                8:"Montant TTC"}
-
-    VenteSheet = classeur.add_sheet("BD_Vente")
-    for col, title in Vente.items():
-        VenteSheet.write(0, col, title, style)
+def cat():  
+    curGDR.execute('SELECT Désignation FROM Categorie')
+    t=curGDR.fetchall()
+    for val in t:
+        a=str(val).lower()
+        a=unidecode.unidecode(a)
+    curGDR.execute('SELECT Produit.IDProduit, Catégorie.Désignation FROM Produit INNER JOIN Catégorie ON Produit.IDCatégorie = Catégorie.IDCatégorie')
+    t=curGDR.fetchall()
 
 def remplacement(mot):
     mot = mot.replace("'", "\\'")
@@ -69,26 +50,58 @@ def date():
     annuel = str(annuel)
     annuel = annuel.replace("-","")
     
-
 #--------------------------------------------------------------------------------------------------------------
 # Code principal
 
-print("\nconnexion en cours à la base d'extraction")
+print("connexion en cours à la base de la recyclerie à extraire")
 conn = pypyodbc.connect(DSN='Extraction')  # initialisation de la connexion au serveur
 curGDR = conn.cursor()
 print("connexion ok\n")
 
-style = easyxf("font: bold 1; alignment: horizontal center")
+print("connexion en cours à la grosse base de données")
+connect = sqlite3.connect("finale.db")
+curSQL = connect.cursor()
+print("connexion ok\n")
 
-RecupInsee()
+# insertion du nom de la recyclerie dans la grosse base de données
+curGDR.execute("SELECT RaisonSociale FROM Organisation")
+RecyclerieNomGDR = curGDR.fetchone()
+for row in RecyclerieNomGDR:
+    nom = row.upper()
+    nom = unidecode.unidecode(nom)
 
-print('Création du classeur d\'extraction')
-classeur = Workbook()
-Collecte(classeur, style)
-Vente(classeur, style)
+curSQL.execute('SELECT Recyclerie FROM Organisation')
+RecyclerieNomSQL = curSQL.fetchall()
 
-classeur.save("extractionGDR.xlsx")
-print('Classeur sauvegardé !')
+curSQL.execute('SELECT count(*) FROM Organisation')
+compteur = curSQL.fetchone()
+for row in compteur:
+    compt = row
+
+# si la table Organisation est vide
+if(compt == 0):
+    curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
+    connect.commit()
+    print("insertion des données effectué")
+    insertComm()
+
+# on regarde si la recyclerie existe sinon on insert les données
+for row in RecyclerieNomSQL:
+    nomSQL = row[0].upper()
+    nomSQL = unidecode.unidecode(nomSQL)
+    if nomSQL == nom:
+        print("Recyclerie déjà existante, veuillez utiliser une autre recyclerie")
+    else:
+        curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
+        connect.commit()
+        print("insertion des données effectué")
+
+        # insertion des communes selon la recyclerie
+
+insertComm()
+        
+connect.close()
 
 conn.close()
 curGDR.close()
+
