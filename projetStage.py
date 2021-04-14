@@ -9,16 +9,21 @@ import unidecode
 #-----------------------------------------------------------------------------------------#
 #fontions principales:
 
-def insertComm():
-    curGDR.execute("SELECT Commune, CodePostal, Déchèterie, Apport, Domicile FROM Commune")
-    CommuneList = curGDR.fetchall()
-
+def IDStructure():
     curSQL.execute("SELECT Id_Recyclerie FROM Organisation WHERE Recyclerie = ?", (RecyclerieNomGDR))
     id_Comm = curSQL.fetchone()
     for row in id_Comm:
         ID_Comm = row
+
+    return ID_Comm
+
+def insertComm():
+    curGDR.execute("SELECT Commune, CodePostal, Déchèterie, Apport, Domicile FROM Commune")
+    CommuneList = curGDR.fetchall()
+
+    ID_Struc = IDStructure()
     
-    curSQL.execute("SELECT Commune FROM Commune WHERE Id_Recyclerie = (?)", (str(ID_Comm)))
+    curSQL.execute("SELECT Commune FROM Commune WHERE Id_Recyclerie = (?)", (str(ID_Struc)))
     CommSQL = curSQL.fetchall()
     CommTab = list()
     for row in CommSQL:
@@ -39,17 +44,14 @@ def insertComm():
         id_insee = str(id_insee)
         id_insee = id_insee.replace("(", "").replace(",", "").replace(")", "")
         if Commune not in CommTab:
-            curSQL.execute("INSERT INTO Commune (Commune, Code_postal, Id_Recyclerie, Id_Insee, Apport, Déchèterie, Domicile) VALUES (?,?,?,?,?,?,?)", (Commune, CodePostal, ID_Comm, id_insee, Apport, Déchet, Domicile))
+            curSQL.execute("INSERT INTO Commune (Commune, Code_postal, Id_Recyclerie, Id_Insee, Apport, Déchèterie, Domicile) VALUES (?,?,?,?,?,?,?)", (Commune, CodePostal, ID_Struc, id_insee, Apport, Déchet, Domicile))
         connect.commit()
 
 def insertArr():
     curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total FROM Arrivage")
     ArrivList = curGDR.fetchall()
 
-    curSQL.execute("SELECT Id_Recyclerie FROM Organisation WHERE Recyclerie = ?", (RecyclerieNomGDR))
-    id_Orga = curSQL.fetchone()
-    for row in id_Orga:
-        ID_Orga = row
+    ID_Orga = IDStructure()
 
     curSQL.execute("SELECT Id_Commune,Commune FROM Commune")
     CommSQL = curSQL.fetchall()
@@ -77,6 +79,19 @@ def insertArr():
         orig = row[1]
         poids = row[2]
         curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie) VALUES (?,?,?,?,?)", (Date, ID_comm, orig, poids, ID_Orga))
+        connect.commit()
+
+def InsertProduit():
+    ID_Struc = IDStructure()
+
+    curGDR.execute('SELECT Produit.Nombre, Produit.Poids, Flux.Flux FROM Flux, Produit WHERE Produit.IDFlux = Flux.IDFlux')
+    List = curGDR.fetchall()
+
+    for row in List:
+        Nombre = row[0]
+        Poids = row[1]
+        Flux = row[2]
+        curSQL.execute('INSERT INTO Produit (Id_orientation, Id_catégorie, Flux, nombre, Id_recyclerie, Poids) VALUES (?,?,?,?,?,?)', (1, 1, Flux, Nombre, ID_Struc, Poids))
         connect.commit()
 
 def cat():  
@@ -114,40 +129,14 @@ print("connexion ok\n")
 # insertion du nom de la recyclerie dans la grosse base de données
 curGDR.execute("SELECT RaisonSociale FROM Organisation")
 RecyclerieNomGDR = curGDR.fetchone()
-for row in RecyclerieNomGDR:
-    nom = row.upper()
-    nom = unidecode.unidecode(nom)
 
-curSQL.execute('SELECT Recyclerie FROM Organisation')
-RecyclerieNomSQL = curSQL.fetchall()
-
-curSQL.execute('SELECT count(*) FROM Organisation')
-compteur = curSQL.fetchone()
-for row in compteur:
-    compt = row
-
-# si la table Organisation est vide
-if(compt == 0):
-    curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
-    connect.commit()
-
-    insertComm()
-    print("insertion des données effectué")
-    
-else:
-    # on regarde si la recyclerie existe sinon on insert les données
-    for row in RecyclerieNomSQL:
-        nomSQL = row[0].upper()
-        nomSQL = unidecode.unidecode(nomSQL)
-        if nomSQL == nom:
-            print("Recyclerie déjà existante, veuillez utiliser une autre recyclerie")
-        else:
-            curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
-            connect.commit()
-
-insertComm()
+curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
+connect.commit()
+#insertComm()
+InsertProduit()
 print("insertion des données effectué")
-#insertArr()    
+
+ 
 connect.close()
 
 conn.close()
