@@ -89,20 +89,22 @@ def insertArr():
 def InsertProduit():
     ID_Struc = IDStructure()
 
-    curGDR.execute('SELECT Produit.Nombre, Produit.Poids, Flux.Flux, Etat_produit.Désignation, Produit.IDArrivage, Categorie.Désignation FROM Flux, Produit, Etat_produit, Categorie WHERE Produit.IDFlux = Flux.IDFlux AND Etat_produit.IDEtat_produit = Produit.IDEtat_produit AND Produit.IDCatégorie = Categorie.IDCatégorie')
+    curGDR.execute('SELECT Produit.Nombre, Produit.Poids, Flux.Flux, Etat_produit.Désignation, Categorie.Désignation FROM Flux, Produit, Etat_produit, Categorie WHERE Produit.IDFlux = Flux.IDFlux AND Etat_produit.IDEtat_produit = Produit.IDEtat_produit AND Produit.IDCatégorie = Categorie.IDCatégorie')
     List = curGDR.fetchall()
 
     for row in List:
         Nombre = row[0]
         Poids = row[1]
         Flux = row[2]
+        Flux = Flux.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
+        IDFlux = flux(Flux)
         Orient = row[3]
-        ID_arr = row[4]
-        Categorie = row[5]
+        Categorie = row[4]
         Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
         IDCat = cat(Categorie)
-        curSQL.execute('INSERT INTO Produit (Orientation, Id_catégorie, Flux, nombre, Id_recyclerie, Poids, Id_arrivage) VALUES (?,?,?,?,?,?,?)', (Orient, IDCat, Flux, Nombre, ID_Struc, Poids, ID_arr))
-        #connect.commit()
+        ID_arr = 1
+        curSQL.execute('INSERT INTO Produit (Orientation, Id_catégorie, Id_Flux, nombre, Id_recyclerie, Poids, Id_arrivage) VALUES (?,?,?,?,?,?,?)', (Orient, IDCat, IDFlux, Nombre, ID_Struc, Poids, ID_arr))
+        connect.commit()
 
 def InsertTournee():
     ID_Struc = IDStructure()
@@ -119,25 +121,47 @@ def InsertTournee():
 def InsertVente():
     ID_Struc=IDStructure()
     
-    curGDR.execute("SELECT to_char(date,'YYYYMMDD'),code_postal,ville,montant_total,tauxremise from vente_magasin")
+    curGDR.execute("SELECT to_char(date,'DD/MM/YYYY'),code_postal,ville,montant_total,tauxremise from vente_magasin")
     b = curGDR.fetchall()
     for venteorigine in b :
         ville=venteorigine[2]
         if ville.find("'") :
             ville=ville.replace("'"," ")
-        curSQL.execute("INSERT INTO Vente (Date, Code_Postal, Commune, Montant_total, TauxRemise, Id_recyclerie) VALUES(%s,'%s','%s','%s','%s','%s') " %\
-                    (venteorigine[0],venteorigine[1],ville,venteorigine[3],venteorigine[4], ID_Struc))
+        IdInsee = Ville(ville)
+        curSQL.execute("INSERT INTO Vente (Id_insee, Date, Code_Postal, Commune, Montant_total, TauxRemise, Id_recyclerie) VALUES('%s', %s,'%s','%s','%s','%s','%s') " %\
+                    (IdInsee, venteorigine[0],venteorigine[1],ville,venteorigine[3],venteorigine[4], ID_Struc))
         curSQL.execute("SELECT max(Id_vente) FROM Vente")
         venteoriginemax=curSQL.fetchone() [0]
-        curGDR.execute("SELECT lignes_vente.idcategorie,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva, Flux.Flux FROM lignes_vente, Sous_Categorie, Flux WHERE idvente_magasin = '%s' AND lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND Sous_Categorie.IDFlux = Flux.IDFlux" %\
+        curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva, Flux.Flux FROM lignes_vente, Sous_Categorie, Flux, Categorie WHERE idvente_magasin = '%s' AND lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND Sous_Categorie.IDFlux = Flux.IDFlux AND Categorie.IDCatégorie = Lignes_Vente.IDCatégorie" %\
                     (venteoriginemax))
         c=curGDR.fetchall()
         for lignevente in c :
-            curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
-                        (lignevente[0],lignevente[1],lignevente[2],lignevente[3],lignevente[4],venteoriginemax, lignevente[5]))
-            
-    connect.commit()
+            Categorie = lignevente[0]
+            Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
+            IDCat = cat(Categorie)
+            Flux = lignevente[5]
+            Flux = Flux.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
+            IDFlux = flux(Flux)
+            curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
+                        (IDCat,lignevente[1],lignevente[2],lignevente[3],lignevente[4],venteoriginemax, IDFlux))
+            connect.commit()
     
+
+def Ville(ville):
+
+    ville = ville.upper().replace("-", " ").replace("'", "")
+    ville = unidecode.unidecode(ville)
+    curSQL.execute("SELECT Id_Insee, Commune FROM Insee")
+    insee = curSQL.fetchall()
+    for row in insee:
+        if ville == row[1]:
+            IdInsee = row[0]
+            break
+        else:
+            IdInsee = 0
+
+    return IdInsee
+
 def cat(cat):
     
     MotClé = {"MOB":1, "MEUBLE":1, "AMEUBLEMENT":1,
@@ -161,6 +185,31 @@ def cat(cat):
             continue
 
     return IDCat
+
+def flux(flux):
+
+    MotClé = {"TOUT":1, "VENANT":1, "ENCOMBRANT":1,
+                "DEA":2,
+                "DEEE":3,
+                "METAUX":4, "FERRAILLE":4,
+                "PAPIER":5,
+                "TEXTILE":6, "TLC":6,
+                "GRAVAT":7,
+                "BOIS":8,
+                "CARTON":9,
+                "VERRE":10,
+                "DECHET":11,
+                "POLYSTYRENE":12}
+
+    IDFlux = 1
+    for mot, Id in MotClé.items():
+        if flux.find(mot) != -1:
+            IDFlux = Id
+            break
+        else:
+            continue
+
+    return IDFlux
 
 def remplacement(mot):
     mot = mot.replace("'", "\\")
@@ -195,8 +244,8 @@ connect.commit()
 #InsertTournee()
 #insertComm()
 #insertArr()
-InsertProduit()
-#InsertVente()
+#InsertProduit()
+InsertVente()
 
 print("insertion des données effectué")
  
