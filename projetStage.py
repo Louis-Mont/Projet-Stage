@@ -48,9 +48,6 @@ def insertComm():
         connect.commit()
 
 def insertArr():
-    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Commune.Commune FROM Arrivage, Commune WHERE Commune.IDCommune = Arrivage.IDCommune")
-    ArrivList = curGDR.fetchall()
-
     ID_Orga = IDStructure()
 
     curSQL.execute("SELECT Id_Commune,Commune FROM Commune WHERE Id_Recyclerie = ?", str(ID_Orga))
@@ -59,15 +56,26 @@ def insertArr():
     for row in CommSQL:
         CommTab[row[1]] = row[0]
 
-    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total FROM Arrivage WHERE IDCommune = 0")
+    curSQL.execute("SELECT Id_Tournée, Tournée FROM Tournée WHERE Id_recyclerie = ?", str(ID_Orga))
+    TournéeSQL = curSQL.fetchall()
+    TournéeDic = {}
+    for row in TournéeSQL:
+        TournéeDic[row[1]] = row[0]
+
+    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Tournée.Intitulé FROM Arrivage, Tournée WHERE IDCommune = 0 AND Tournée.IDTournée = Arrivage.IDTournée")
     ArrivList2 = curGDR.fetchall()
     for row in ArrivList2:
         Date = row[0]
         orig = row[1]
         poids = row[2]
-        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, 0, orig, poids, ID_Orga, 1))
+        tournée = row[3]
+        tournée = tournée.replace("'", "").replace("-", " ")
+        ID_tour = TournéeDic[tournée]
+        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, 0, orig, poids, ID_Orga, ID_tour))
         connect.commit()
 
+    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Commune.Commune FROM Arrivage, Commune WHERE Commune.IDCommune = Arrivage.IDCommune")
+    ArrivList = curGDR.fetchall()
     for row in ArrivList:
         Date = row[0]
         orig = row[1]
@@ -75,33 +83,25 @@ def insertArr():
         Comm = row[3]
         Comm = Comm.replace("'","").replace("-"," ")
         ID_comm = CommTab[Comm]
-        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, ID_comm, orig, poids, ID_Orga, 1))
+        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, ID_comm, orig, poids, ID_Orga, 0))
         connect.commit()
 
 def InsertProduit():
     ID_Struc = IDStructure()
 
-    curGDR.execute('SELECT Produit.Nombre, Produit.Poids, Flux.Flux, Etat_produit.Désignation FROM Flux, Produit, Etat_produit WHERE Produit.IDFlux = Flux.IDFlux AND Etat_produit.IDEtat_produit = Produit.IDEtat_produit')
+    curGDR.execute('SELECT Produit.Nombre, Produit.Poids, Flux.Flux, Etat_produit.Désignation, Produit.IDArrivage, Categorie.Désignation FROM Flux, Produit, Etat_produit, Categorie WHERE Produit.IDFlux = Flux.IDFlux AND Etat_produit.IDEtat_produit = Produit.IDEtat_produit AND Produit.IDCatégorie = Categorie.IDCatégorie')
     List = curGDR.fetchall()
-
-    Categories = list()
-    curGDR.execute('SELECT Categorie.Désignation FROM Produit, Categorie WHERE Produit.IDCatégorie = Categorie.IDCatégorie')
-    ListCat = curGDR.fetchall()
-    for row in ListCat:
-        Cat = row[0]
-        Cat = Cat.upper()
-        Cat = Cat.replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
-        Cat = unidecode.unidecode(Cat)
-        Categories.append(Cat)
-
-    IDCat = cat()
 
     for row in List:
         Nombre = row[0]
         Poids = row[1]
         Flux = row[2]
         Orient = row[3]
-        curSQL.execute('INSERT INTO Produit (Orientation, Id_catégorie, Flux, nombre, Id_recyclerie, Poids) VALUES (?,?,?,?,?,?)', (Orient, IDCat, Flux, Nombre, ID_Struc, Poids))
+        ID_arr = row[4]
+        Categorie = row[5]
+        Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
+        IDCat = cat(Categorie)
+        curSQL.execute('INSERT INTO Produit (Orientation, Id_catégorie, Flux, nombre, Id_recyclerie, Poids, Id_arrivage) VALUES (?,?,?,?,?,?,?)', (Orient, IDCat, Flux, Nombre, ID_Struc, Poids, ID_arr))
         #connect.commit()
 
 def InsertTournee():
@@ -112,18 +112,54 @@ def InsertTournee():
 
     for row in List:
         Tournee = row[0]
+        Tournee = Tournee.replace("'", "").replace("-"," ")
         curSQL.execute('INSERT INTO Tournée (Tournée, Id_recyclerie) VALUES (?,?)', (Tournee, ID_Struc))
         connect.commit()           
 
-def cat():
-    CatCSV=csv.reader(open('categories.csv', "r", encoding='ISO-8859-1'), delimiter=',')
-    next(CatCSV, None)
-    for row in CatCSV:
-        Mobilier = row[0]
-        Mobilier = Mobilier.upper()
-        curSQL.execute("SELECT Id_Catégorie FROM Catégorie WHERE Catégorie LIKE '%s' " %\
-                    (Mobilier))
-        IDCat = curSQL.fetchone()
+def InsertVente():
+    ID_Struc=IDStructure()
+    
+    curGDR.execute("SELECT to_char(date,'YYYYMMDD'),code_postal,ville,montant_total,tauxremise from vente_magasin")
+    b = curGDR.fetchall()
+    for venteorigine in b :
+        ville=venteorigine[2]
+        if ville.find("'") :
+            ville=ville.replace("'"," ")
+        curSQL.execute("INSERT INTO Vente (Date, Code_Postal, Commune, Montant_total, TauxRemise, Id_recyclerie) VALUES(%s,'%s','%s','%s','%s','%s') " %\
+                    (venteorigine[0],venteorigine[1],ville,venteorigine[3],venteorigine[4], ID_Struc))
+        curSQL.execute("SELECT max(Id_vente) FROM Vente")
+        venteoriginemax=curSQL.fetchone() [0]
+        curGDR.execute("SELECT lignes_vente.idcategorie,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva, Flux.Flux FROM lignes_vente, Sous_Categorie, Flux WHERE idvente_magasin = '%s' AND lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND Sous_Categorie.IDFlux = Flux.IDFlux" %\
+                    (venteoriginemax))
+        c=curGDR.fetchall()
+        for lignevente in c :
+            curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
+                        (lignevente[0],lignevente[1],lignevente[2],lignevente[3],lignevente[4],venteoriginemax, lignevente[5]))
+            
+    connect.commit()
+    
+def cat(cat):
+    
+    MotClé = {"MOB":1, "MEUBLE":1, "AMEUBLEMENT":1,
+                "ELECTRO":2, "APPAREIL":2,
+                "LITTERATURE":3, "CULTURE":3,
+                "BIBELOT":4, "VAISSELLE":4,
+                "TEXTILE":5,
+                "INFO":6, "MULTIMEDIA":6,
+                "JEU":7, "JOUET":7,
+                "BRICO":8, "JARD":8, "OUTIL":8, "NATURE":8,
+                "LOISIR":9, "SPORT":9,
+                "DECO":10,
+                "CYCLE":11}
+
+    IDCat = 12
+    for mot, Id in MotClé.items():
+        if cat.find(mot) != -1:
+            IDCat = Id
+            break
+        else:
+            continue
+
     return IDCat
 
 def remplacement(mot):
@@ -159,10 +195,8 @@ connect.commit()
 #InsertTournee()
 #insertComm()
 #insertArr()
-#InsertProduit()
-
-test = cat()
-print(test)
+InsertProduit()
+#InsertVente()
 
 print("insertion des données effectué")
  
