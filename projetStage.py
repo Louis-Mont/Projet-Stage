@@ -62,7 +62,10 @@ def insertArr():
     for row in TournéeSQL:
         TournéeDic[row[1]] = row[0]
 
-    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Tournée.Intitulé FROM Arrivage, Tournée WHERE IDCommune = 0 AND Tournée.IDTournée = Arrivage.IDTournée")
+    curSQL.execute("SELECT max(Id_Arrivage) FROM Arrivage")
+    test=curSQL.fetchone() [0]
+
+    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Tournée.Intitulé, IDArrivage FROM Arrivage, Tournée WHERE IDCommune = 0 AND Tournée.IDTournée = Arrivage.IDTournée")
     ArrivList2 = curGDR.fetchall()
     for row in ArrivList2:
         Date = row[0]
@@ -71,10 +74,14 @@ def insertArr():
         tournée = row[3]
         tournée = tournée.replace("'", "").replace("-", " ")
         ID_tour = TournéeDic[tournée]
-        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, 0, orig, poids, ID_Orga, ID_tour))
+        if not test:
+            Id_arr = row[4]
+        else:
+            Id_arr = test + row[4]
+        curSQL.execute("INSERT INTO Arrivage (Id_arrivage, Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?,?)", (Id_arr, Date, 0, orig, poids, ID_Orga, ID_tour))
         connect.commit()
 
-    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Commune.Commune FROM Arrivage, Commune WHERE Commune.IDCommune = Arrivage.IDCommune")
+    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Commune.Commune, IDArrivage FROM Arrivage, Commune WHERE Commune.IDCommune = Arrivage.IDCommune")
     ArrivList = curGDR.fetchall()
     for row in ArrivList:
         Date = row[0]
@@ -83,15 +90,21 @@ def insertArr():
         Comm = row[3]
         Comm = Comm.replace("'","").replace("-"," ")
         ID_comm = CommTab[Comm]
-        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, ID_comm, orig, poids, ID_Orga, 0))
+        if not test:
+            Id_arr = row[4]
+        else:
+            Id_arr = test + row[4]
+        curSQL.execute("INSERT INTO Arrivage (Id_arrivage, Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?,?)", (Id_arr, Date, ID_comm, orig, poids, ID_Orga, 0))
         connect.commit()
 
 def InsertProduit():
     ID_Struc = IDStructure()
 
-    curGDR.execute('SELECT Produit.Nombre, Produit.Poids, Flux.Flux, Etat_produit.Désignation, Categorie.Désignation FROM Flux, Produit, Etat_produit, Categorie WHERE Produit.IDFlux = Flux.IDFlux AND Etat_produit.IDEtat_produit = Produit.IDEtat_produit AND Produit.IDCatégorie = Categorie.IDCatégorie')
+    curGDR.execute('SELECT Produit.Nombre, Produit.Poids, Flux.Flux, Etat_produit.Désignation, Categorie.Désignation, Produit.IDArrivage FROM Flux, Produit, Etat_produit, Categorie WHERE Produit.IDFlux = Flux.IDFlux AND Etat_produit.IDEtat_produit = Produit.IDEtat_produit AND Produit.IDCatégorie = Categorie.IDCatégorie')
     List = curGDR.fetchall()
 
+    curSQL.execute("SELECT max(Id_Arrivage) FROM Produit")
+    test=curSQL.fetchone() [0]
     for row in List:
         Nombre = row[0]
         Poids = row[1]
@@ -102,7 +115,10 @@ def InsertProduit():
         Categorie = row[4]
         Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
         IDCat = cat(Categorie)
-        ID_arr = 1
+        if not test:
+            ID_arr = row[5]
+        else:
+            ID_arr = test + row[5]
         curSQL.execute('INSERT INTO Produit (Orientation, Id_catégorie, Id_Flux, nombre, Id_recyclerie, Poids, Id_arrivage) VALUES (?,?,?,?,?,?,?)', (Orient, IDCat, IDFlux, Nombre, ID_Struc, Poids, ID_arr))
         connect.commit()
 
@@ -144,8 +160,7 @@ def InsertVente():
             IDFlux = flux(Flux)
             curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
                         (IDCat,lignevente[1],lignevente[2],lignevente[3],lignevente[4],venteoriginemax, IDFlux))
-            connect.commit()
-    
+            connect.commit()   
 
 def Ville(ville):
 
@@ -245,7 +260,7 @@ connect.commit()
 #insertComm()
 #insertArr()
 #InsertProduit()
-InsertVente()
+#InsertVente()
 
 print("insertion des données effectué")
  
