@@ -5,6 +5,7 @@ import sqlite3
 import xlrd
 import pandas as pd
 import unidecode
+import correction_des_communes
 
 #-----------------------------------------------------------------------------------------#
 #fontions principales:
@@ -35,6 +36,8 @@ def insertComm():
         Commune = row[0].upper()
         Commune = unidecode.unidecode(Commune)
         Commune = Commune.replace("'", "").replace("-", " ")
+        if Commune[:3] == "ST " or Commune[:4] =="STE ":
+            Commune = Commune.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
         CodePostal = row[1]
         Déchet = row[2]
         Apport = row[3]
@@ -120,7 +123,7 @@ def InsertProduit():
         else:
             ID_arr = test + row[5]
         curSQL.execute('INSERT INTO Produit (Orientation, Id_catégorie, Id_Flux, nombre, Id_recyclerie, Poids, Id_arrivage) VALUES (?,?,?,?,?,?,?)', (Orient, IDCat, IDFlux, Nombre, ID_Struc, Poids, ID_arr))
-        connect.commit()
+        #connect.commit()
 
 def InsertTournee():
     ID_Struc = IDStructure()
@@ -140,9 +143,13 @@ def InsertVente():
     curGDR.execute("SELECT to_char(date,'DD/MM/YYYY'),code_postal,ville,montant_total,tauxremise from vente_magasin")
     b = curGDR.fetchall()
     for venteorigine in b :
-        ville=venteorigine[2]
+        ville=venteorigine[2].upper().replace("-", " ")
+        ville = unidecode.unidecode(ville)
         if ville.find("'") :
             ville=ville.replace("'"," ")
+        if ville[:3] == "ST " or ville[:4] =="STE ":
+            ville = ville.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
+        print(ville)
         IdInsee = Ville(ville)
         curSQL.execute("INSERT INTO Vente (Id_insee, Date, Code_Postal, Commune, Montant_total, TauxRemise, Id_recyclerie) VALUES('%s', %s,'%s','%s','%s','%s','%s') " %\
                     (IdInsee, venteorigine[0],venteorigine[1],ville,venteorigine[3],venteorigine[4], ID_Struc))
@@ -177,19 +184,29 @@ def Ville(ville):
 
     return IdInsee
 
+def catDico():
+    test=csv.reader(open('catégorie.csv', "r", encoding='latin-1'), delimiter=',')
+    next(test, None)
+    MotClé = {}
+
+    for row in test:
+        MotClé[row[0]] = row[1]
+
+    return MotClé
+
+def fluxDico():
+    test=csv.reader(open('fluxa.csv', "r", encoding='latin-1'), delimiter=',')
+    next(test, None)
+    MotClé = {}
+
+    for row in test:
+        MotClé[row[0]] = row[1]
+
+    return MotClé
+
 def cat(cat):
     
-    MotClé = {"MOB":1, "MEUBLE":1, "AMEUBLEMENT":1,
-                "ELECTRO":2, "APPAREIL":2,
-                "LITTERATURE":3, "CULTURE":3,
-                "BIBELOT":4, "VAISSELLE":4,
-                "TEXTILE":5,
-                "INFO":6, "MULTIMEDIA":6,
-                "JEU":7, "JOUET":7,
-                "BRICO":8, "JARD":8, "OUTIL":8, "NATURE":8,
-                "LOISIR":9, "SPORT":9,
-                "DECO":10,
-                "CYCLE":11}
+    MotClé = catDico()
 
     IDCat = 12
     for mot, Id in MotClé.items():
@@ -203,6 +220,7 @@ def cat(cat):
 
 def flux(flux):
 
+    '''
     MotClé = {"TOUT":1, "VENANT":1, "ENCOMBRANT":1,
                 "DEA":2,
                 "DEEE":3,
@@ -215,9 +233,12 @@ def flux(flux):
                 "VERRE":10,
                 "DECHET":11,
                 "POLYSTYRENE":12}
+    '''
+    MotClé = fluxDico()
 
     IDFlux = 1
     for mot, Id in MotClé.items():
+        print(mot, Id)
         if flux.find(mot) != -1:
             IDFlux = Id
             break
@@ -235,7 +256,16 @@ def date():
     annuel = jourj - datetime.timedelta(days=366)
     annuel = str(annuel)
     annuel = annuel.replace("-","")
-    
+
+def correct():
+    curGDR.execute("SELECT Ville FROM Organisation")
+    Ville = curGDR.fetchone()
+    Ville = Ville[0].upper().replace("-"," ").replace("'", "")
+    curSQL.execute("SELECT Longitude, Latitude FROM Insee WHERE Commune = ?", (Ville,))
+    GPS = curSQL.fetchone()
+    ID = IDStructure()
+    correction_des_communes.correction(connect, curSQL, ID, GPS[0], GPS[1])
+
 #--------------------------------------------------------------------------------------------------------------
 # Code principal
 
@@ -256,16 +286,25 @@ RecyclerieNomGDR = curGDR.fetchone()
 curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
 connect.commit()
 
+#######################################################################
+##INSERTION DES DONNEES##
+
+print("Insertion en cours...")
 #InsertTournee()
+print("Tournée insérée")
 #insertComm()
+print("Commune insérée")
+#correct()
 #insertArr()
-#InsertProduit()
+print("Arrivage inséré")
+InsertProduit()
+print("Produit inséré")
 #InsertVente()
+print("Vente inséré")
 
 print("insertion des données effectué")
- 
-connect.close()
 
+connect.close()
 conn.close()
 curGDR.close()
 
