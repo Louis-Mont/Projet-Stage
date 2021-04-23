@@ -219,26 +219,10 @@ def cat(cat):
     return IDCat
 
 def flux(flux):
-
-    '''
-    MotClé = {"TOUT":1, "VENANT":1, "ENCOMBRANT":1,
-                "DEA":2,
-                "DEEE":3,
-                "METAUX":4, "FERRAILLE":4,
-                "PAPIER":5,
-                "TEXTILE":6, "TLC":6,
-                "GRAVAT":7,
-                "BOIS":8,
-                "CARTON":9,
-                "VERRE":10,
-                "DECHET":11,
-                "POLYSTYRENE":12}
-    '''
     MotClé = fluxDico()
 
     IDFlux = 1
     for mot, Id in MotClé.items():
-        print(mot, Id)
         if flux.find(mot) != -1:
             IDFlux = Id
             break
@@ -301,6 +285,9 @@ InsertProduit()
 print("Produit inséré")
 #InsertVente()
 print("Vente inséré")
+
+#requete pour les sous categorie
+#SELECT SUM(ROUND((sous_categorie.Poids_Moyen*Lignes_vente.nombre),2)) FROM Lignes_vente INNER JOIN sous_categorie ON Lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie WHERE IDvente_magasin IN ( SELECT distinct(vente_magasin.idvente_magasin) FROM vente_magasin INNER JOIN Lignes_vente ON vente_magasin.idvente_magasin = lignes_vente.idvente_magasin WHERE Lignes_vente.IDCatégorie = '10' AND Vente_Magasin.Date BETWEEN '20210414' AND '20210415' AND Vente_Magasin.Caisse= 'Cais'  )  and lignes_vente.poids =0
 
 print("insertion des données effectué")
 
