@@ -18,13 +18,20 @@ def IDStructure():
 
     return ID_Comm
 
+def verifAnnee(MaxDate, annee):
+    date = str(annee) + '/01/01'
+    if MaxDate > date:
+        return date
+    else:
+        date = str(annee-1) + '/01/01'
+        return date
+
 def insertComm():
-    curGDR.execute("SELECT Commune, CodePostal, Déchèterie, Apport, Domicile FROM Commune")
+    curGDR.execute("SELECT Commune, CodePostal, Déchèterie, Apport, Domicile FROM Commune WHERE EnrActif = 1")
     CommuneList = curGDR.fetchall()
 
     ID_Struc = IDStructure()
-    
-    curSQL.execute("SELECT Commune FROM Commune WHERE Id_Recyclerie = (?)", (str(ID_Struc)))
+    curSQL.execute("SELECT Commune FROM Commune WHERE Id_Recyclerie = ?", (ID_Struc,))
     CommSQL = curSQL.fetchall()
     CommTab = list()
     for row in CommSQL:
@@ -36,30 +43,38 @@ def insertComm():
         Commune = row[0].upper()
         Commune = unidecode.unidecode(Commune)
         Commune = Commune.replace("'", "").replace("-", " ")
+        Commune = Commune.strip(' ')
         if Commune[:3] == "ST " or Commune[:4] =="STE ":
-            Commune = Commune.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
+            Commune = Commune.replace("ST ", "SAINT ").replace("STE ","SAINTE ").replace(" ST ", " SAINT ").replace(" STE ", " SAINTE ")
         CodePostal = row[1]
         Déchet = row[2]
         Apport = row[3]
         Domicile = row[4]
-        curSQL.execute("SELECT Id_Insee FROM Insee WHERE Commune = (?)", (Commune,))
+        codePost = str(CodePostal)
+        codePost = codePost[:2] + '%'
+        curSQL.execute("SELECT Id_Insee FROM Insee WHERE Commune = ? AND Code LIKE ?", (Commune, codePost))
         id_insee = curSQL.fetchone()
         id_insee = str(id_insee)
         id_insee = id_insee.replace("(", "").replace(",", "").replace(")", "")
         if Commune not in CommTab:
             curSQL.execute("INSERT INTO Commune (Commune, Code_postal, Id_Recyclerie, Id_Insee, Apport, Déchèterie, Domicile) VALUES (?,?,?,?,?,?,?)", (Commune, CodePostal, ID_Struc, id_insee, Apport, Déchet, Domicile))
-        connect.commit()
 
 def insertArr():
     ID_Orga = IDStructure()
 
-    curSQL.execute("SELECT Id_Commune,Commune FROM Commune WHERE Id_Recyclerie = ?", str(ID_Orga))
+    annee = datetime.date.today().year
+    curGDR.execute("select max(to_char(Date,'YYYY/MM/DD')) from arrivage")
+    MaxDate = curGDR.fetchone()[0]
+
+    date = verifAnnee(MaxDate, annee)
+
+    curSQL.execute("SELECT Id_Commune,Commune FROM Commune WHERE Id_Recyclerie = ?", (ID_Orga,))
     CommSQL = curSQL.fetchall()
     CommTab = {}
     for row in CommSQL:
         CommTab[row[1]] = row[0]
 
-    curSQL.execute("SELECT Id_Tournée, Tournée FROM Tournée WHERE Id_recyclerie = ?", str(ID_Orga))
+    curSQL.execute("SELECT Id_Tournée, Tournée FROM Tournée WHERE Id_recyclerie = ?", (ID_Orga,))
     TournéeSQL = curSQL.fetchall()
     TournéeDic = {}
     for row in TournéeSQL:
@@ -68,7 +83,8 @@ def insertArr():
     curSQL.execute("SELECT max(Id_Arrivage) FROM Arrivage")
     test=curSQL.fetchone() [0]
 
-    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Tournée.Intitulé, IDArrivage FROM Arrivage, Tournée WHERE IDCommune = 0 AND Tournée.IDTournée = Arrivage.IDTournée")
+    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Tournée.Intitulé, IDArrivage FROM Arrivage, Tournée WHERE IDCommune = 0 AND Tournée.IDTournée = Arrivage.IDTournée AND date <= %s " %\
+            (date))
     ArrivList2 = curGDR.fetchall()
     for row in ArrivList2:
         Date = row[0]
@@ -82,23 +98,24 @@ def insertArr():
         else:
             Id_arr = test + row[4]
         curSQL.execute("INSERT INTO Arrivage (Id_arrivage, Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?,?)", (Id_arr, Date, 0, orig, poids, ID_Orga, ID_tour))
-        connect.commit()
 
-    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Commune.Commune, IDArrivage FROM Arrivage, Commune WHERE Commune.IDCommune = Arrivage.IDCommune")
+    curGDR.execute("SELECT to_char(Date,'DD/MM/YYYY'), Origine, Poids_total, Commune.Commune, IDArrivage FROM Arrivage, Commune WHERE Commune.IDCommune = Arrivage.IDCommune AND date <= %s " %\
+            (date))
     ArrivList = curGDR.fetchall()
     for row in ArrivList:
         Date = row[0]
         orig = row[1]
         poids = row[2]
         Comm = row[3]
-        Comm = Comm.replace("'","").replace("-"," ")
+        Comm = Comm.upper().replace("'","").replace("-"," ")
+        Comm = unidecode.unidecode(Comm)
+        Comm = Comm.strip(' ')
         ID_comm = CommTab[Comm]
         if not test:
             Id_arr = row[4]
         else:
             Id_arr = test + row[4]
         curSQL.execute("INSERT INTO Arrivage (Id_arrivage, Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?,?)", (Id_arr, Date, ID_comm, orig, poids, ID_Orga, 0))
-        connect.commit()
 
 def InsertProduit():
     ID_Struc = IDStructure()
@@ -123,7 +140,6 @@ def InsertProduit():
         else:
             ID_arr = test + row[5]
         curSQL.execute('INSERT INTO Produit (Orientation, Id_catégorie, Id_Flux, nombre, Id_recyclerie, Poids, Id_arrivage) VALUES (?,?,?,?,?,?,?)', (Orient, IDCat, IDFlux, Nombre, ID_Struc, Poids, ID_arr))
-        #connect.commit()
 
 def InsertTournee():
     ID_Struc = IDStructure()
@@ -135,24 +151,31 @@ def InsertTournee():
         Tournee = row[0]
         Tournee = Tournee.replace("'", "").replace("-"," ")
         curSQL.execute('INSERT INTO Tournée (Tournée, Id_recyclerie) VALUES (?,?)', (Tournee, ID_Struc))
-        connect.commit()           
-
+          
 def InsertVente():
     ID_Struc=IDStructure()
     
-    curGDR.execute("SELECT to_char(date,'DD/MM/YYYY'),code_postal,ville,montant_total,tauxremise from vente_magasin")
+    annee = datetime.date.today().year
+    curGDR.execute("SELECT MAX(to_char(Date,'YYYY/MM/DD')) FROM vente_magasin")
+    MaxDate = curGDR.fetchone()[0]
+
+    date = verifAnnee(MaxDate, annee)
+
+    curGDR.execute("SELECT to_char(date,'DD/MM/YYYY'),code_postal,ville,montant_total,tauxremise from vente_magasin WHERE date <= %s " %\
+            (date))
     b = curGDR.fetchall()
     for venteorigine in b :
-        ville=venteorigine[2].upper().replace("-", " ")
-        ville = unidecode.unidecode(ville)
+        ville=venteorigine[2].replace("-", " ")
+        ville = unidecode.unidecode(ville).upper()
+        ville = ville.replace(" ST ", " SAINT ").replace(" STE ", " SAINTE ")
+        ville = ville.strip(' ')
         if ville.find("'") :
             ville=ville.replace("'"," ")
         if ville[:3] == "ST " or ville[:4] =="STE ":
             ville = ville.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
-        print(ville)
         IdInsee = Ville(ville)
-        curSQL.execute("INSERT INTO Vente (Id_insee, Date, Code_Postal, Commune, Montant_total, TauxRemise, Id_recyclerie) VALUES('%s', %s,'%s','%s','%s','%s','%s') " %\
-                    (IdInsee, venteorigine[0],venteorigine[1],ville,venteorigine[3],venteorigine[4], ID_Struc))
+        curSQL.execute("INSERT INTO Vente (Id_insee, Date, Code_Postal, Commune, Montant_total, TauxRemise, Id_recyclerie) VALUES('%s', '%s','%s','%s','%s','%s','%s') " %\
+                    (IdInsee,venteorigine[0],venteorigine[1],ville,venteorigine[3],venteorigine[4], ID_Struc))
         curSQL.execute("SELECT max(Id_vente) FROM Vente")
         venteoriginemax=curSQL.fetchone() [0]
         curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva, Flux.Flux FROM lignes_vente, Sous_Categorie, Flux, Categorie WHERE idvente_magasin = '%s' AND lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND Sous_Categorie.IDFlux = Flux.IDFlux AND Categorie.IDCatégorie = Lignes_Vente.IDCatégorie" %\
@@ -166,8 +189,7 @@ def InsertVente():
             Flux = Flux.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
             IDFlux = flux(Flux)
             curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
-                        (IDCat,lignevente[1],lignevente[2],lignevente[3],lignevente[4],venteoriginemax, IDFlux))
-            connect.commit()   
+                        (IDCat,lignevente[1],lignevente[2],lignevente[3],lignevente[4],venteoriginemax, IDFlux))  
 
 def Ville(ville):
 
@@ -195,7 +217,7 @@ def catDico():
     return MotClé
 
 def fluxDico():
-    test=csv.reader(open('fluxa.csv', "r", encoding='latin-1'), delimiter=',')
+    test=csv.reader(open('flux.csv', "r", encoding='latin-1'), delimiter=',')
     next(test, None)
     MotClé = {}
 
@@ -263,33 +285,34 @@ connect = sqlite3.connect("finale.db")
 curSQL = connect.cursor()
 print("connexion ok\n")
 
-# insertion du nom de la recyclerie dans la grosse base de données
-curGDR.execute("SELECT RaisonSociale FROM Organisation")
-RecyclerieNomGDR = curGDR.fetchone()
-
-curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
-connect.commit()
-
 #######################################################################
 ##INSERTION DES DONNEES##
+try:
+    curGDR.execute("SELECT RaisonSociale FROM Organisation")
+    RecyclerieNomGDR = curGDR.fetchone()
 
-print("Insertion en cours...")
-#InsertTournee()
-print("Tournée insérée")
-#insertComm()
-print("Commune insérée")
-#correct()
-#insertArr()
-print("Arrivage inséré")
-InsertProduit()
-print("Produit inséré")
-#InsertVente()
-print("Vente inséré")
+    curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
 
-#requete pour les sous categorie
-#SELECT SUM(ROUND((sous_categorie.Poids_Moyen*Lignes_vente.nombre),2)) FROM Lignes_vente INNER JOIN sous_categorie ON Lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie WHERE IDvente_magasin IN ( SELECT distinct(vente_magasin.idvente_magasin) FROM vente_magasin INNER JOIN Lignes_vente ON vente_magasin.idvente_magasin = lignes_vente.idvente_magasin WHERE Lignes_vente.IDCatégorie = '10' AND Vente_Magasin.Date BETWEEN '20210414' AND '20210415' AND Vente_Magasin.Caisse= 'Cais'  )  and lignes_vente.poids =0
+    print("Insertion en cours...")
+    #InsertTournee()
+    print("Tournée insérée")
+    #insertComm()
+    print("Commune insérée")
+    #correct()
+    #insertArr()
+    print("Arrivage inséré")
+    #InsertProduit()
+    print("Produit inséré")
+    #InsertVente()
+    print("Vente inséré")
 
-print("insertion des données effectué")
+    #requete pour les sous categorie
+    #curGDR.execute("SELECT SUM(ROUND((sous_categorie.Poids_Moyen*Lignes_vente.nombre),2)) FROM Lignes_vente INNER JOIN sous_categorie ON Lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie WHERE IDvente_magasin IN ( SELECT distinct(vente_magasin.idvente_magasin) FROM vente_magasin INNER JOIN Lignes_vente ON vente_magasin.idvente_magasin = lignes_vente.idvente_magasin   )  and lignes_vente.poids =0") 
+
+    #connect.commit()
+    print("insertion des données effectué")
+except:
+    print("erreur")
 
 connect.close()
 conn.close()
