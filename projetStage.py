@@ -161,7 +161,17 @@ def InsertVente():
 
     date = verifAnnee(MaxDate, annee)
 
-    curGDR.execute("SELECT to_char(date,'DD/MM/YYYY'),code_postal,ville,montant_total,tauxremise from vente_magasin WHERE date <= %s " %\
+    curSQL.execute("SELECT Id_Insee, Commune FROM Insee")
+    insee = curSQL.fetchall()
+
+    curGDR.execute("SELECT to_char(date,'DD/MM/YYYY'),code_postal,montant_total,tauxremise from vente_magasin WHERE date <= %s and ville =''" %\
+            (date))
+    b = curGDR.fetchall()
+    for venteorigine in b :
+        curSQL.execute("INSERT INTO Vente (Id_insee, Date, Code_Postal, Montant_total, TauxRemise, Id_recyclerie) VALUES('%s', '%s','%s','%s','%s','%s') " %\
+                    (0,venteorigine[0],venteorigine[1],venteorigine[2],venteorigine[3], ID_Struc))
+
+    curGDR.execute("SELECT to_char(date,'DD/MM/YYYY'),code_postal,ville,montant_total,tauxremise from vente_magasin WHERE date <= %s and ville != ''" %\
             (date))
     b = curGDR.fetchall()
     for venteorigine in b :
@@ -173,30 +183,29 @@ def InsertVente():
             ville=ville.replace("'"," ")
         if ville[:3] == "ST " or ville[:4] =="STE ":
             ville = ville.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
-        IdInsee = Ville(ville)
+        IdInsee = Ville(ville, insee)
         curSQL.execute("INSERT INTO Vente (Id_insee, Date, Code_Postal, Commune, Montant_total, TauxRemise, Id_recyclerie) VALUES('%s', '%s','%s','%s','%s','%s','%s') " %\
                     (IdInsee,venteorigine[0],venteorigine[1],ville,venteorigine[3],venteorigine[4], ID_Struc))
-        curSQL.execute("SELECT max(Id_vente) FROM Vente")
-        venteoriginemax=curSQL.fetchone() [0]
-        curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva, Flux.Flux FROM lignes_vente, Sous_Categorie, Flux, Categorie WHERE idvente_magasin = '%s' AND lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND Sous_Categorie.IDFlux = Flux.IDFlux AND Categorie.IDCatégorie = Lignes_Vente.IDCatégorie" %\
-                    (venteoriginemax))
-        c=curGDR.fetchall()
-        for lignevente in c :
-            Categorie = lignevente[0]
-            Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
-            IDCat = cat(Categorie)
-            Flux = lignevente[5]
-            Flux = Flux.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
-            IDFlux = flux(Flux)
-            curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
-                        (IDCat,lignevente[1],lignevente[2],lignevente[3],lignevente[4],venteoriginemax, IDFlux))  
-
-def Ville(ville):
+        
+    curSQL.execute("SELECT max(Id_vente) FROM Vente")
+    venteoriginemax=curSQL.fetchone() [0]
+    curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva, Flux.Flux FROM lignes_vente, Sous_Categorie, Flux, Categorie WHERE lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND Sous_Categorie.IDFlux = Flux.IDFlux AND Categorie.IDCatégorie = Lignes_Vente.IDCatégorie")
+    c=curGDR.fetchall()
+    for lignevente in c :
+        Categorie = lignevente[0]
+        Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
+        IDCat = cat(Categorie)
+        Flux = lignevente[5]
+        Flux = Flux.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
+        IDFlux = flux(Flux)
+        curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
+                        (IDCat,lignevente[1],lignevente[2],lignevente[3],lignevente[4],venteoriginemax, IDFlux)) 
+        
+def Ville(ville, insee):
 
     ville = ville.upper().replace("-", " ").replace("'", "")
     ville = unidecode.unidecode(ville)
-    curSQL.execute("SELECT Id_Insee, Commune FROM Insee")
-    insee = curSQL.fetchall()
+    
     for row in insee:
         if ville == row[1]:
             IdInsee = row[0]
@@ -294,25 +303,26 @@ try:
     curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
 
     print("Insertion en cours...")
-    #InsertTournee()
+    InsertTournee()
     print("Tournée insérée")
-    #insertComm()
+    insertComm()
     print("Commune insérée")
-    #correct()
-    #insertArr()
+    correct()
+    insertArr()
     print("Arrivage inséré")
-    #InsertProduit()
+    InsertProduit()
     print("Produit inséré")
-    #InsertVente()
+    InsertVente()
     print("Vente inséré")
 
-    #requete pour les sous categorie
-    #curGDR.execute("SELECT SUM(ROUND((sous_categorie.Poids_Moyen*Lignes_vente.nombre),2)) FROM Lignes_vente INNER JOIN sous_categorie ON Lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie WHERE IDvente_magasin IN ( SELECT distinct(vente_magasin.idvente_magasin) FROM vente_magasin INNER JOIN Lignes_vente ON vente_magasin.idvente_magasin = lignes_vente.idvente_magasin   )  and lignes_vente.poids =0") 
-
-    #connect.commit()
+    connect.commit()
     print("insertion des données effectué")
 except:
     print("erreur")
+
+#requete pour les sous categorie
+#curGDR.execute("SELECT SUM(ROUND((sous_categorie.Poids_Moyen*Lignes_vente.nombre),2)) FROM Lignes_vente INNER JOIN sous_categorie ON Lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie WHERE IDvente_magasin IN ( SELECT distinct(vente_magasin.idvente_magasin) FROM vente_magasin INNER JOIN Lignes_vente ON vente_magasin.idvente_magasin = lignes_vente.idvente_magasin WHERE Vente_Magasin.Date BETWEEN '20190101' AND '20210101' )  and lignes_vente.poids =0")
+#print(curGDR.fetchall())
 
 connect.close()
 conn.close()
