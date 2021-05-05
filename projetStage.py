@@ -37,7 +37,7 @@ def insertComm():
     CommTab = list()
     for row in CommSQL:
         verif = row[0].upper()
-        verif = verif.replace("'", "").replace("-", " ")
+        verif = verif.replace("'", "\\'").replace("-", " ")
         CommTab.append(verif)
 
     curGDR.execute("SELECT Commune,CodePostal, Déchèterie, Apport, Domicile FROM Commune WHERE EnrActif = 1 AND (CodePostal = '' or CodePostal != '') ORDER BY CodePostal")
@@ -45,7 +45,7 @@ def insertComm():
     for row in CommuneList1:
         Commune = row[0].upper()
         Commune = unidecode.unidecode(Commune)
-        Commune = Commune.replace("'", "").replace("-", " ")
+        Commune = Commune.replace("'", "\\'").replace("-", " ")
         Commune = Commune.strip(' ').replace(" ST ", " SAINT ").replace(" STE ", " SAINTE ")
         if Commune[:3] == "ST " or Commune[:4] =="STE ":
             Commune = Commune.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
@@ -463,9 +463,30 @@ def flux(flux):
 def correct():
     curGDR.execute("SELECT Ville FROM Organisation") #On va chercher la ville où la structure se situe
     Ville = curGDR.fetchone() [0]
-    Ville = Ville.upper().replace("-"," ").replace("'", "")
-    curSQL.execute("SELECT Longitude, Latitude FROM Insee WHERE Commune = ?", (Ville,)) #On va chercher les coordonnées de la ville
+    Ville = Ville.upper().replace("-"," ").replace("'", "\\'")
+    Ville = unidecode.unidecode(Ville)
+    curSQL.execute("SELECT Longitude, Latitude FROM Insee WHERE Commune = '%s'"%\
+                        (Ville)) #On va chercher les coordonnées de la ville
     GPS = curSQL.fetchone()
+    if GPS == None:
+        fichier = "ancienne_commune.csv"
+        Csv=csv.reader(open(fichier, "r", encoding='latin-1'), delimiter=',')
+        next(Csv, None)
+        listing_insee={}
+        for row in Csv:
+            OldComm=row[3]
+            if OldComm.find("'") :
+                OldComm=OldComm.replace("'","")
+            OldComm=unidecode.unidecode(OldComm.strip().upper()).replace("-", " ")
+            NewComm=unidecode.unidecode(row[1].strip().upper()).replace("-", " ")
+            listing_insee[OldComm] = NewComm
+            for k,v in listing_insee.items() :
+                if k == Ville :
+                    Ville = v
+                    break
+        curSQL.execute("SELECT Longitude, Latitude FROM Insee WHERE Commune = '%s'"%\
+                        (Ville))
+        GPS = curSQL.fetchone()
     ID = IDStructure()
     correction_des_communes.correction(connect, curSQL, ID, GPS[0], GPS[1]) #appel d'une fonction du fichier correction_des_communes
 
