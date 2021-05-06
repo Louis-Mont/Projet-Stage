@@ -37,7 +37,7 @@ def insertComm():
     CommTab = list()
     for row in CommSQL:
         verif = row[0].upper()
-        verif = verif.replace("'", "\\'").replace("-", " ")
+        verif = verif.replace("'", "").replace("-", " ")
         CommTab.append(verif)
 
     curGDR.execute("SELECT Commune,CodePostal, Déchèterie, Apport, Domicile FROM Commune WHERE EnrActif = 1 AND (CodePostal = '' or CodePostal != '') ORDER BY CodePostal")
@@ -45,7 +45,7 @@ def insertComm():
     for row in CommuneList1:
         Commune = row[0].upper()
         Commune = unidecode.unidecode(Commune)
-        Commune = Commune.replace("'", "\\'").replace("-", " ")
+        Commune = Commune.replace("'", "").replace("-", " ")
         Commune = Commune.strip(' ').replace(" ST ", " SAINT ").replace(" STE ", " SAINTE ")
         if Commune[:3] == "ST " or Commune[:4] =="STE ":
             Commune = Commune.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
@@ -96,9 +96,6 @@ def insertArr():
     for row in TournéeSQL:
         TournéeDic[row[1]] = row[0]
 
-    curSQL.execute("SELECT max(Id_Arrivage) FROM Arrivage")
-    test=curSQL.fetchone() [0]
-
     curGDR.execute("SELECT to_char(Date,'YYYY/MM/DD'), Origine, Poids_total, IDArrivage FROM Arrivage WHERE IDCommune = 0 AND IDTournée = 0 AND date > %s AND date < %s " %\
             (verifDate,date))
     ArrivList3 = curGDR.fetchall()
@@ -106,11 +103,13 @@ def insertArr():
         Date = row[0]
         orig = row[1]
         poids = row[2]
-        if not test:
-            Id_arr = row[3]
-        else:
-            Id_arr = test + row[3]
-        curSQL.execute("INSERT INTO Arrivage (Id_arrivage, Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?,?)", (Id_arr, Date, 0, orig, poids, ID_Orga, 0))
+        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, 0, orig, poids, ID_Orga, 0))
+
+        curSQL.execute("select max(Id_arrivage) from Arrivage")
+        arrivagemax=curSQL.fetchone() [0]
+
+        InsertProduit(ID_Orga, row[3], arrivagemax)
+
 
     curGDR.execute("SELECT to_char(Date,'YYYY/MM/DD'), Origine, Poids_total, Tournee.Intitulé, IDArrivage FROM Arrivage, Tournee WHERE IDCommune = 0 AND Tournee.IDTournée = Arrivage.IDTournée AND date > %s AND date < %s " %\
             (verifDate,date))
@@ -122,11 +121,12 @@ def insertArr():
         tournée = row[3]
         tournée = tournée.replace("'", "").replace("-", " ")
         ID_tour = TournéeDic[tournée]
-        if not test:
-            Id_arr = row[4]
-        else:
-            Id_arr = test + row[4]
-        curSQL.execute("INSERT INTO Arrivage (Id_arrivage, Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?,?)", (Id_arr, Date, 0, orig, poids, ID_Orga, ID_tour))
+        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, 0, orig, poids, ID_Orga, ID_tour))
+
+        curSQL.execute("select max(Id_arrivage) from Arrivage")
+        arrivagemax=curSQL.fetchone() [0]
+
+        InsertProduit(ID_Orga, row[4], arrivagemax)
 
     curGDR.execute("SELECT to_char(Date,'YYYY/MM/DD'), Origine, Poids_total, Commune.Commune, IDArrivage FROM Arrivage, Commune WHERE Commune.IDCommune = Arrivage.IDCommune AND date > %s AND date < %s " %\
             (verifDate,date))
@@ -143,11 +143,12 @@ def insertArr():
         if Comm[:3] == "ST " or Comm[:4] =="STE ":
             Comm = Comm.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
         ID_comm = CommTab[Comm]
-        if not test:
-            Id_arr = row[4]
-        else:
-            Id_arr = test + row[4]
-        curSQL.execute("INSERT INTO Arrivage (Id_arrivage, Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?,?)", (Id_arr, Date, ID_comm, orig, poids, ID_Orga, 0))
+        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, ID_comm, orig, poids, ID_Orga, 0))
+
+        curSQL.execute("select max(Id_arrivage) from Arrivage")
+        arrivagemax=curSQL.fetchone() [0]
+
+        InsertProduit(ID_Orga, row[4], arrivagemax)
 
 def ListPoids():
 
@@ -210,21 +211,15 @@ def JeuCsv():
 
     return MotClé
 
-def InsertProduit():
-    ID_Struc = IDStructure()
-
-    curGDR.execute('SELECT Produit.Nombre, Produit.Poids, Flux.Flux, Etat_produit.Désignation, Categorie.Désignation, Produit.IDArrivage, Sous_Categorie.Désignation FROM Flux, Produit, Etat_produit, Categorie, Sous_Categorie WHERE Produit.IDFlux = Flux.IDFlux AND Etat_produit.IDEtat_produit = Produit.IDEtat_produit AND Produit.IDCatégorie = Categorie.IDCatégorie AND Produit.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie')
+def InsertProduit(ID_Struc, IDArrivage, Arrivagemax):
+    curGDR.execute("SELECT Produit.Nombre, Produit.Poids, Flux.Flux, Etat_produit.Désignation, Categorie.Désignation, Produit.IDArrivage, Sous_Categorie.Désignation FROM Flux, Produit, Etat_produit, Categorie, Sous_Categorie WHERE Produit.IDFlux = Flux.IDFlux AND Etat_produit.IDEtat_produit = Produit.IDEtat_produit AND Produit.IDCatégorie = Categorie.IDCatégorie AND Produit.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND IDArrivage = '%s'"%\
+                                (IDArrivage))
     List = curGDR.fetchall()
 
-    curSQL.execute("SELECT max(Id_Arrivage) FROM Produit")
-    test=curSQL.fetchone() [0]
     for row in List:
-        Nombre = row[0]
-        Poids = row[1]
         Flux = row[2]
         Flux = Flux.upper().replace("'", "").replace("-", "").replace("/", "").replace(" ", "")
         IDFlux = flux(Flux)
-        Orient = row[3]
         Categorie = row[4]
         Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
         SousCategorie = row[6]
@@ -234,11 +229,7 @@ def InsertProduit():
             IDCat = souscatCycle(SousCategorie)
         if IDCat != '7' and IDCat != '5' and IDCat != '1':
             IDCat = souscatJeu(SousCategorie, IDCat)
-        if not test:
-            ID_arr = row[5]
-        else:
-            ID_arr = test + row[5]
-        curSQL.execute('INSERT INTO Produit (Orientation, Id_catégorie, Id_Flux, nombre, Id_recyclerie, Poids, Id_arrivage) VALUES (?,?,?,?,?,?,?)', (Orient, IDCat, IDFlux, Nombre, ID_Struc, Poids, ID_arr))
+        curSQL.execute('INSERT INTO Produit (Orientation, Id_catégorie, Id_Flux, nombre, Id_recyclerie, Poids, Id_arrivage) VALUES (?,?,?,?,?,?,?)', (row[3], IDCat, IDFlux, row[0], ID_Struc, row[1], Arrivagemax))
 
 def InsertTournee():
     ID_Struc = IDStructure()
@@ -280,12 +271,11 @@ def InsertVente():
     insee = curSQL.fetchall()
 
     ListePoids,n = ListPoids()
-    
-    curGDR.execute("SELECT to_char(date,'YYYY/MM/DD'),code_postal,ville,montant_total,tauxremise from vente_magasin WHERE date > %s AND date < %s ORDER BY code_postal,ville" %\
-            (verifDate,date))
+        
+    curGDR.execute("SELECT to_char(date,'YYYY/MM/DD'),code_postal,ville,montant_total,tauxremise, IDVente_Magasin from vente_magasin WHERE date > %s AND date < %s ORDER BY code_postal,ville" %\
+                (verifDate,date))
     b = curGDR.fetchall()
     for venteorigine in b :
-        
         if venteorigine[2] == '' or venteorigine[2] == '-1':
             ville = 'NR'
             IdInsee = 'NR'
@@ -299,76 +289,83 @@ def InsertVente():
             if ville[:3] == "ST " or ville[:4] =="STE ":
                 ville = ville.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
             IdInsee = Ville(ville, insee)
-            
+                
         curSQL.execute("INSERT INTO Vente (Id_insee, Date, Code_Postal, Commune, Montant_total, TauxRemise, Id_recyclerie) VALUES('%s', '%s','%s','%s','%s','%s','%s') " %\
-                    (IdInsee,venteorigine[0],venteorigine[1],ville,venteorigine[3],venteorigine[4], ID_Struc))
-        
-    curSQL.execute("SELECT max(Id_vente) FROM Vente")
-    venteoriginemax=curSQL.fetchone() [0]
-    curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva, Flux.Flux, lignes_vente.IDProduit, lignes_vente.IDSous_Catégorie, Sous_Categorie.Désignation FROM lignes_vente, Sous_Categorie, Flux, Categorie WHERE lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND Sous_Categorie.IDFlux = Flux.IDFlux AND Categorie.IDCatégorie = Lignes_Vente.IDCatégorie")
-    c=curGDR.fetchall()
-    for lignevente in c :
-        Categorie = lignevente[0]
-        Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
-        SousCategorie = lignevente[8]
-        SousCategorie = SousCategorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
-        IDCat = cat(Categorie)
-        if IDCat == '9' :
-            IDCat = souscatCycle(SousCategorie)
-        if IDCat != '7' and IDCat != '5' and IDCat != '1':
-            IDCat = souscatJeu(SousCategorie, IDCat)
-        Flux = lignevente[5]
-        Flux = Flux.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
-        IDFlux = flux(Flux)
-        poids = lignevente[2]
-        if poids == 0:
-            poids = poidsProd(lignevente[7],ListePoids,n)
-        curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
-                        (IDCat,lignevente[1],poids,lignevente[3],lignevente[4],venteoriginemax, IDFlux))
-    
-    curSQL.execute("SELECT max(Id_vente) FROM Vente")
-    venteoriginemax=curSQL.fetchone() [0]
-    curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva,lignes_vente.IDProduit, lignes_vente.IDSous_Catégorie, Sous_Categorie.Désignation FROM lignes_vente, Sous_Categorie, Categorie WHERE Sous_Categorie.IDFlux = 0 AND lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND Categorie.IDCatégorie = Lignes_Vente.IDCatégorie")
-    c=curGDR.fetchall()
-    for lignevente in c :
-        Categorie = lignevente[0]
-        Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
-        SousCategorie = lignevente[7]
-        SousCategorie = SousCategorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
-        IDCat = cat(Categorie)
-        if IDCat == '9' :
-            IDCat = souscatCycle(SousCategorie)
-        if IDCat != '7' and IDCat != '5' and IDCat != '1':
-            IDCat = souscatJeu(SousCategorie, IDCat)
-        poids = lignevente[2]
-        if poids == 0:
-            poids = poidsProd(lignevente[6],ListePoids,n)
-        curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
-                        (IDCat,lignevente[1],poids,lignevente[3],lignevente[4],venteoriginemax, 0)) 
+                        (IdInsee,venteorigine[0],venteorigine[1],ville,venteorigine[3],venteorigine[4], ID_Struc))
 
-    curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva,lignes_vente.IDProduit FROM lignes_vente, Categorie WHERE Categorie.IDCatégorie = Lignes_Vente.IDCatégorie AND IDSous_Categorie = 0")
-    c=curGDR.fetchall()
-    for lignevente in c :
-        Categorie = lignevente[0]
-        Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
-        IDCat = cat(Categorie)
-        poids = lignevente[2]
-        if poids == 0:
-            poids = 'NR'
-        curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
-                        (IDCat,lignevente[1],poids,lignevente[3],lignevente[4],venteoriginemax, 'NR'))
-    
-    curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva,lignes_vente.IDProduit FROM lignes_vente, Categorie WHERE Lignes_Vente.IDSous_Catégorie = 0 and  Categorie.IDCatégorie = Lignes_Vente.IDCatégorie")
-    c=curGDR.fetchall()
-    for lignevente in c :
-        Categorie = lignevente[0]
-        Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
-        IDCat = cat(Categorie)
-        poids = lignevente[2]
-        if poids == 0:
-            poids = 'NR'
-        curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
-                        (IDCat,lignevente[1],poids,lignevente[3],lignevente[4],venteoriginemax, 'NR'))
+        curSQL.execute("select max(Id_Vente) from Vente ")
+        venteoriginemax=curSQL.fetchone() [0]
+
+        curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva, Flux.Flux, lignes_vente.IDProduit, lignes_vente.IDSous_Catégorie, Sous_Categorie.Désignation FROM lignes_vente, Sous_Categorie, Flux, Categorie WHERE lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND Sous_Categorie.IDFlux = Flux.IDFlux AND Categorie.IDCatégorie = Lignes_Vente.IDCatégorie AND IDVente_Magasin = '%s'" %\
+                                (venteorigine[5]))
+        c=curGDR.fetchall()
+        for lignevente in c :
+            
+            Categorie = lignevente[0]
+            Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
+            SousCategorie = lignevente[8]
+            SousCategorie = SousCategorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
+            IDCat = cat(Categorie)
+            if IDCat == '9' :
+                IDCat = souscatCycle(SousCategorie)
+            if IDCat != '7' and IDCat != '5' and IDCat != '1':
+                IDCat = souscatJeu(SousCategorie, IDCat)
+            Flux = lignevente[5]
+            Flux = Flux.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
+            IDFlux = flux(Flux)
+            poids = lignevente[2]
+            if poids == 0:
+                poids = poidsProd(lignevente[7],ListePoids,n)
+            curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
+                            (IDCat,lignevente[1],poids,lignevente[3],lignevente[4],venteoriginemax, IDFlux))
+        
+        curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva,lignes_vente.IDProduit, lignes_vente.IDSous_Catégorie, Sous_Categorie.Désignation FROM lignes_vente, Sous_Categorie, Categorie WHERE Sous_Categorie.IDFlux = 0 AND lignes_vente.IDSous_Catégorie = Sous_Categorie.IDSous_Catégorie AND Categorie.IDCatégorie = Lignes_Vente.IDCatégorie AND IDVente_Magasin = '%s'" %\
+                                (venteorigine[5]))
+        c=curGDR.fetchall()
+        for lignevente in c :
+            
+            Categorie = lignevente[0]
+            Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
+            SousCategorie = lignevente[7]
+            SousCategorie = SousCategorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
+            IDCat = cat(Categorie)
+            if IDCat == '9' :
+                IDCat = souscatCycle(SousCategorie)
+            if IDCat != '7' and IDCat != '5' and IDCat != '1':
+                IDCat = souscatJeu(SousCategorie, IDCat)
+            poids = lignevente[2]
+            if poids == 0:
+                poids = poidsProd(lignevente[6],ListePoids,n)
+            curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
+                            (IDCat,lignevente[1],poids,lignevente[3],lignevente[4],venteoriginemax, 0)) 
+
+        curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva,lignes_vente.IDProduit FROM lignes_vente, Categorie WHERE Categorie.IDCatégorie = Lignes_Vente.IDCatégorie AND IDSous_Categorie = 0 AND IDVente_Magasin = '%s'" %\
+                                (venteorigine[5]))
+        c=curGDR.fetchall()
+        for lignevente in c :
+            
+            Categorie = lignevente[0]
+            Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
+            IDCat = cat(Categorie)
+            poids = lignevente[2]
+            if poids == 0:
+                poids = 'NR'
+            curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
+                            (IDCat,lignevente[1],poids,lignevente[3],lignevente[4],venteoriginemax, 'NR'))
+        
+        curGDR.execute("SELECT Categorie.Désignation,lignes_vente.montant,lignes_vente.poids,lignes_vente.tauxtva,lignes_vente.montanttva,lignes_vente.IDProduit FROM lignes_vente, Categorie WHERE Lignes_Vente.IDSous_Catégorie = 0 and  Categorie.IDCatégorie = Lignes_Vente.IDCatégorie AND IDVente_Magasin = '%s'" %\
+                                (venteorigine[5]))
+        c=curGDR.fetchall()
+        for lignevente in c :
+            
+            Categorie = lignevente[0]
+            Categorie = Categorie.upper().replace("'", "").replace("-", "").replace("/", "").strip(" ")
+            IDCat = cat(Categorie)
+            poids = lignevente[2]
+            if poids == 0:
+                poids = 'NR'
+            curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
+                            (IDCat,lignevente[1],poids,lignevente[3],lignevente[4],venteoriginemax, 'NR'))
 
 def Ville(ville, insee):
 
@@ -463,7 +460,7 @@ def flux(flux):
 def correct():
     curGDR.execute("SELECT Ville FROM Organisation") #On va chercher la ville où la structure se situe
     Ville = curGDR.fetchone() [0]
-    Ville = Ville.upper().replace("-"," ").replace("'", "\\'")
+    Ville = Ville.upper().replace("-"," ").replace("'", "")
     Ville = unidecode.unidecode(Ville)
     curSQL.execute("SELECT Longitude, Latitude FROM Insee WHERE Commune = '%s'"%\
                         (Ville)) #On va chercher les coordonnées de la ville
@@ -499,7 +496,7 @@ curGDR = conn.cursor()
 print("connexion ok\n")
 
 print("connexion en cours à la grosse base de données")
-connect = sqlite3.connect("test.db") # initialisation de la connexion à la base sql
+connect = sqlite3.connect("finale.db") # initialisation de la connexion à la base sql
 curSQL = connect.cursor()
 print("connexion ok\n")
 
@@ -512,18 +509,16 @@ try:
     curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
     print("Insertion en cours...")
     InsertTournee()
-    print("Tournée insérée")
+    print("Tournée insérée  ===> 25%")
     insertComm()
-    print("Commune insérée")
+    print("Commune insérée  ===> 50%")
     correct()
-    #insertArr()
-    print("Arrivage inséré")
-    #InsertProduit()
-    print("Produit inséré")
-    #InsertVente()
-    print("Vente inséré")
+    insertArr()
+    print("Arrivage inséré  ===> 75%")
+    InsertVente()
+    print("Vente inséré  ===> 100%")
 
-    #connect.commit()
+    connect.commit()
     print("insertion des données effectué")
 except IOError:
     print(IOError)
