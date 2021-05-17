@@ -2,8 +2,6 @@ import pypyodbc
 import datetime
 import csv
 import sqlite3
-import xlrd
-import pandas as pd
 import unidecode
 import correction_des_communes
 from math import *
@@ -100,28 +98,21 @@ def insertArr():
             (verifDate,date))
     ArrivList3 = curGDR.fetchall()
     for row in ArrivList3:
-        Date = row[0]
-        orig = row[1]
-        poids = row[2]
-        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, 0, orig, poids, ID_Orga, 0))
+        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (row[0], 0, row[1], row[2], ID_Orga, 0))
 
         curSQL.execute("select max(Id_arrivage) from Arrivage")
         arrivagemax=curSQL.fetchone() [0]
 
         InsertProduit(ID_Orga, row[3], arrivagemax)
 
-
     curGDR.execute("SELECT to_char(Date,'YYYY/MM/DD'), Origine, Poids_total, Tournee.Intitulé, IDArrivage FROM Arrivage, Tournee WHERE IDCommune = 0 AND Tournee.IDTournée = Arrivage.IDTournée AND date > %s AND date < %s " %\
             (verifDate,date))
     ArrivList2 = curGDR.fetchall()
     for row in ArrivList2:
-        Date = row[0]
-        orig = row[1]
-        poids = row[2]
         tournée = row[3]
         tournée = tournée.replace("'", "").replace("-", " ")
         ID_tour = TournéeDic[tournée]
-        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, 0, orig, poids, ID_Orga, ID_tour))
+        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (row[0], 0, row[1], row[2], ID_Orga, ID_tour))
 
         curSQL.execute("select max(Id_arrivage) from Arrivage")
         arrivagemax=curSQL.fetchone() [0]
@@ -132,9 +123,6 @@ def insertArr():
             (verifDate,date))
     ArrivList = curGDR.fetchall()
     for row in ArrivList:
-        Date = row[0]
-        orig = row[1]
-        poids = row[2]
         Comm = row[3]
         Comm = Comm.upper().replace("'","").replace("-"," ")
         Comm = unidecode.unidecode(Comm)
@@ -143,20 +131,21 @@ def insertArr():
         if Comm[:3] == "ST " or Comm[:4] =="STE ":
             Comm = Comm.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
         ID_comm = CommTab[Comm]
-        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (Date, ID_comm, orig, poids, ID_Orga, 0))
+        curSQL.execute("INSERT INTO Arrivage (Date, Id_commune, origine, poids_total, Id_recyclerie, Id_tournée) VALUES (?,?,?,?,?,?)", (row[0], ID_comm, row[1], row[2], ID_Orga, 0))
 
         curSQL.execute("select max(Id_arrivage) from Arrivage")
         arrivagemax=curSQL.fetchone() [0]
 
         InsertProduit(ID_Orga, row[4], arrivagemax)
 
+#fonction qui va retourner une liste des poids et une autre liste pour le nombre des produits selon les sous_catégories de la base GDR
 def ListPoids():
 
     curGDR.execute("SELECT IDSous_Catégorie FROM Sous_Categorie")
-    IDSousCat = curGDR.fetchall()
+    IDSousCat = curGDR.fetchall() # On récupère les identifiants de sous_catégorie
     
-    PoidsDico = {}
-    NombreDico = {}
+    PoidsDico = {} # premier dictionnaire repertoriant les poids selon la sous_catégorie
+    NombreDico = {} # deuxième dictionnaire repertoriant le nombre de produit selon la sous_catégorie
     for val in IDSousCat:
         curGDR.execute("SELECT count(IDProduit) FROM Produit WHERE IDSous_Catégorie = '%s'"%\
                             (val[0]))
@@ -288,7 +277,7 @@ def InsertVente():
                 ville=ville.replace("'"," ")
             if ville[:3] == "ST " or ville[:4] =="STE ":
                 ville = ville.replace("ST ", "SAINT ").replace("STE ","SAINTE ")
-            IdInsee = Ville(ville, insee)
+            IdInsee = Ville(ville, insee, venteorigine[1])
                 
         curSQL.execute("INSERT INTO Vente (Id_insee, Date, Code_Postal, Commune, Montant_total, TauxRemise, Id_recyclerie) VALUES('%s', '%s','%s','%s','%s','%s','%s') " %\
                         (IdInsee,venteorigine[0],venteorigine[1],ville,venteorigine[3],venteorigine[4], ID_Struc))
@@ -367,13 +356,14 @@ def InsertVente():
             curSQL.execute("INSERT INTO Lignes_vente (Id_catégorie,Montant,Poids,Taux_tva,Montant_tva,Id_vente, Id_Flux) values ('%s','%s','%s','%s','%s','%s','%s')" %\
                             (IDCat,lignevente[1],poids,lignevente[3],lignevente[4],venteoriginemax, 'NR'))
 
-def Ville(ville, insee):
+def Ville(ville, insee, code_postal):
 
     ville = ville.upper().replace("-", " ").replace("'", "")
     ville = unidecode.unidecode(ville)
     
+    codePost = str(code_postal)[:2]
     for row in insee:
-        if ville == row[1]:
+        if ville == row[1] and row[0].find(codePost) != -1:
             IdInsee = row[0]
             break
         else:
@@ -415,6 +405,7 @@ def cat(cat):
 
     return IDCat
 
+#fonction pour réattribuer les produits de la catégorie "SPORTS ET LOISIRS" ayant comme sous_catégories "CYCLES", "VELO" ou autre à la catégorie "CYCLES"
 def souscatCycle(souscat):
     MotCycle = CycleCsv()
 
@@ -429,25 +420,26 @@ def souscatCycle(souscat):
 
     return IDCat
 
+# fonction pour réattribuer les catégories qui ont des sous_catégories ayant comme désignation "JEUX", "JOUETS" ou autre qui n'appartiennent pas à la catégorie "JEUX ET JOUETS" à la catégorie "JEUX ET JOUETS"
 def souscatJeu(souscat, IDcat):
     MotCycle = JeuCsv()
 
-    IDCat = IDcat
-    souscat = unidecode.unidecode(souscat)
+    souscat = unidecode.unidecode(souscat) 
     for val in MotCycle:
-        if souscat.find(val) != -1 and souscat != 'JEUNESSE':
-            IDCat = 7    
+        if souscat.find(val) != -1 and souscat != 'JEUNESSE': # si la sous_catégorie est identifié dans la liste et n'a pas pour désignation "JEUNESSE" alors on lui attribue la catégorie "JEUX ET JOUETS"
+            IDcat = 7    
             break
         else:
             continue
 
-    return IDCat
+    return IDcat
 
+#fonction pour réattribuer les flux des bases GDR aux flux finaux de la base SQL
 def flux(flux):
     MotClé = fluxDico()
 
-    IDFlux = 9
-    for mot, Id in MotClé.items():
+    IDFlux = 1 # identifiant par defaut represantant le flux "TOUT VENANT" 
+    for mot, Id in MotClé.items(): # recherche dans la liste si le flux existe et lui attribue un nouvel identifiant sinon prend l'identifiant par defaut
         if flux.find(mot) != -1:
             IDFlux = Id
             break
@@ -465,6 +457,7 @@ def correct():
     curSQL.execute("SELECT Longitude, Latitude FROM Insee WHERE Commune = '%s'"%\
                         (Ville)) #On va chercher les coordonnées de la ville
     GPS = curSQL.fetchone()
+    #si il n'ya pas de coordonnée alors le programme va chercher dans le fichier des anciennes communes si la commune s'y trouve et retourne la nouvelle commune 
     if GPS == None:
         fichier = "ancienne_commune.csv"
         Csv=csv.reader(open(fichier, "r", encoding='latin-1'), delimiter=',')
@@ -503,10 +496,10 @@ print("connexion ok\n")
 #######################################################################
 ##INSERTION DES DONNEES##
 try:
-    curGDR.execute("SELECT RaisonSociale FROM Organisation")
+    curGDR.execute("SELECT RaisonSociale FROM Organisation") # récupère le nom de l'organisation
     RecyclerieNomGDR = curGDR.fetchone()
 
-    curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR))
+    curSQL.execute("INSERT OR IGNORE INTO Organisation (Recyclerie) VALUES (?) ", (RecyclerieNomGDR)) # insère le nom de l'organisation dans la nouvelle base ou non si le nom existe déjà
     print("Insertion en cours...")
     InsertTournee()
     print("Tournée insérée  ===> 25%")
@@ -517,7 +510,6 @@ try:
     print("Arrivage inséré  ===> 75%")
     InsertVente()
     print("Vente inséré  ===> 100%")
-
     connect.commit()
     print("insertion des données effectué")
 except IOError:
