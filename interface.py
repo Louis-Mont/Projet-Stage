@@ -1,9 +1,14 @@
+from io import StringIO
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
+from tkinter import messagebox
 import sqlite3
 import datetime
 from xlwt import Workbook
+import xlrd
+import csv
+import os
 
 # connexion à la base de données sinon stop le programme et affiche l'erreur
 try:
@@ -173,7 +178,7 @@ def new_window(listStruct):
     Chkbox5 = Checkbutton(SecondFen, text = 'Nombre d\'objet vendu', var = chkValue5)
     Chkbox5.grid(row=6,column=2)
 
-    BtnExport = Button(SecondFen, text='Exporter', command=lambda:export(listCat, choixjour1, choixmois1, choixan1, choixjour2, choixmois2, choixan2, StructList, chkValue1, chkValue2, chkValue3, chkValue4, chkValue5))
+    BtnExport = Button(SecondFen, text='Exporter', command=lambda:export(SecondFen, listCat, choixjour1, choixmois1, choixan1, choixjour2, choixmois2, choixan2, StructList, chkValue1, chkValue2, chkValue3, chkValue4, chkValue5))
     BtnExport.grid(row=10,column=5, padx = 40, pady = 20)
 
     SecondFen.mainloop()
@@ -202,14 +207,14 @@ def delStruct():
     itemSelected = listStruct.curselection()
     listStruct.delete(itemSelected[0])
 
-def export(listCat, jour1, mois1, an1, jour2, mois2, an2, StructList, chk1, chk2, chk3, chk4, chk5):
+def export(SecondFen, listCat, jour1, mois1, an1, jour2, mois2, an2, StructList, chk1, chk2, chk3, chk4, chk5):
     filename = filedialog.asksaveasfilename(defaultextension = '.xls',
                                             filetypes = [("xls files", '*.xls')])
+    
     size = listCat.size()
 
-    ListCategorie = [c for c in listCat.get(0,END)]
-    """for categorie in listCat.get(0,END):
-        ListCategorie.append(categorie)"""
+    ListCategorie = [c for c in listCat.get(0,END)] # création d'une liste des catégories sélectionnées 
+
     jourfirst = jour1.get()
     moisfirst = mois1.get()
     anfirst = an1.get()
@@ -243,23 +248,34 @@ def export(listCat, jour1, mois1, an1, jour2, mois2, an2, StructList, chk1, chk2
             i+=1
         pageexport.write(i+1,0,"total :")
     TailleCat = len(ListCategorie)
+    TailleStruct = len(StructList)
+    y = 1
     if chk1.get() == True:
-        totalPoidsC = 0
-        indice = 0
+        totalPoidsC = 0 # variable pour le poids collecté sur l'ensemble des catégories 
+        indice = 0 # variable pour l'indexation selon la taille de la liste des catégories
         pageexport.write(4,y,"Poids collecté (en kg)")
         x = 5 # indice pour la ligne dans le fichier xls
         while (indice != TailleCat):
-            cur.execute("SELECT sum(Poids)*nombre FROM Produit, Catégorie, Arrivage WHERE Produit.Id_recyclerie = 1 AND Produit.Id_catégorie = Catégorie.Id_catégorie AND Produit.Id_arrivage=Arrivage.Id_arrivage AND date > '%s' AND date < '%s' AND Catégorie = '%s' GROUP BY Catégorie.Id_catégorie"%\
-                            (str(dateFirst),str(dateEnd),ListCategorie[indice]))
-            PoidsCollect = cur.fetchall()
-            if len(PoidsCollect) == 0:
-                pageexport.write(x, y, "NR")
-                x +=1
-            else:
-                for poids in PoidsCollect:
-                    pageexport.write(x, y, poids[0])
-                    totalPoidsC+= poids[0]
-                    x +=1
+            indice2 = 0 # variable pour l'indexation selon la taille de la liste des structures
+            val = 0 # variable qui va recevoir les valeurs de la requete
+            while (indice2 != TailleStruct):
+                cur.execute("SELECT sum(Poids)*nombre FROM Produit, Catégorie, Arrivage, Organisation WHERE Recyclerie = '%s' AND Produit.Id_recyclerie=Organisation.Id_recyclerie AND Produit.Id_catégorie = Catégorie.Id_catégorie AND Produit.Id_arrivage=Arrivage.Id_arrivage AND date > '%s' AND date < '%s' AND Catégorie = '%s' GROUP BY Catégorie.Id_catégorie"%\
+                                (StructList[indice2], str(dateFirst),str(dateEnd),ListCategorie[indice]))
+                PoidsCollect = cur.fetchall()
+                if len(PoidsCollect) == 0:
+                    val+=0
+                else:
+                    for poids in PoidsCollect:
+                        val+=poids[0]
+                        totalPoidsC+= poids[0]       
+                indice2+=1
+            if indice2 == TailleStruct:
+                    if val != 0:
+                        pageexport.write(x, y, val)
+                        x +=1
+                    else:
+                        pageexport.write(x, y, 'NR')
+                        x +=1
             indice+=1
         pageexport.write(x+1,y,totalPoidsC)
         y+=1 # on passe a la colonne suivante pour les données suivantes
@@ -269,17 +285,26 @@ def export(listCat, jour1, mois1, an1, jour2, mois2, an2, StructList, chk1, chk2
         pageexport.write(4,y,"Poids vendu (en kg)")
         x = 5 # indice pour la ligne dans le fichier xls
         while (indice != TailleCat):
-            cur.execute("SELECT sum(Lignes_vente.Poids) FROM Lignes_vente, Vente, Catégorie WHERE Lignes_vente.Id_vente = Vente.Id_Vente AND Lignes_vente.Id_catégorie=Catégorie.Id_catégorie AND Vente.Id_recyclerie = 1 AND date > '%s' AND date < '%s' AND Catégorie = '%s' GROUP BY Catégorie.Id_catégorie"%\
-                                    (str(dateFirst),str(dateEnd),ListCategorie[indice]))
-            PoidsVendu = cur.fetchall()
-            if len(PoidsVendu) == 0:
-                pageexport.write(x, y, "NR")
-                x +=1
-            else:
-                for poids in PoidsVendu:
-                    pageexport.write(x, y, poids[0])
-                    totalPoidsV += poids[0]
-                x +=1
+            indice2 = 0 # variable pour l'indexation selon la taille de la liste des structures
+            val = 0 # variable qui va recevoir les valeurs de la requete
+            while (indice2 != TailleStruct):
+                cur.execute("SELECT sum(Lignes_vente.Poids) FROM Lignes_vente, Vente, Catégorie, Organisation WHERE Recyclerie = '%s' AND Vente.Id_recyclerie=Organisation.Id_recyclerie AND Lignes_vente.Id_vente = Vente.Id_Vente AND Lignes_vente.Id_catégorie=Catégorie.Id_catégorie AND date > '%s' AND date < '%s' AND Catégorie = '%s' GROUP BY Catégorie.Id_catégorie"%\
+                                        (StructList[indice2], str(dateFirst),str(dateEnd),ListCategorie[indice]))
+                PoidsVendu = cur.fetchall()
+                if len(PoidsVendu) == 0:
+                    val+=0
+                else:
+                    for poids in PoidsVendu:
+                        val+= poids[0]
+                        totalPoidsV += poids[0]
+                indice2+=1
+            if indice2 == TailleStruct:
+                    if val != 0:
+                        pageexport.write(x, y, val)
+                        x +=1
+                    else:
+                        pageexport.write(x, y, 'NR')
+                        x +=1
             indice+=1
         pageexport.write(x+1,y,totalPoidsV)
         y +=1
@@ -289,17 +314,26 @@ def export(listCat, jour1, mois1, an1, jour2, mois2, an2, StructList, chk1, chk2
         pageexport.write(4,y,"Chiffre d'affaire (en €)")
         x = 5 # indice pour la ligne dans le fichier xls
         while (indice != TailleCat):
-            cur.execute("SELECT sum(Montant), Catégorie FROM Vente, Catégorie, Lignes_vente WHERE Vente.Id_recyclerie = 1 AND Lignes_vente.Id_vente=Vente.Id_Vente AND Lignes_vente.Id_catégorie=Catégorie.Id_catégorie AND date > '%s' AND date < '%s' AND Catégorie = '%s' GROUP BY Catégorie.Id_catégorie"%\
-                                    (str(dateFirst),str(dateEnd),ListCategorie[indice]))
-            ChiffreAffaire = cur.fetchall()
-            if len(ChiffreAffaire) == 0:
-                pageexport.write(x, y, "NR")
-                x +=1
-            else:
-                for chiffre in ChiffreAffaire:
-                    pageexport.write(x, y, chiffre[0])
-                    totalChiffre+= chiffre[0]
-                x +=1
+            indice2 = 0 # variable pour l'indexation selon la taille de la liste des structures
+            val = 0 # variable qui va recevoir les valeurs de la requete
+            while (indice2 != TailleStruct):
+                cur.execute("SELECT sum(Montant), Catégorie FROM Vente, Catégorie, Lignes_vente, Organisation WHERE Recyclerie = '%s' AND Vente.Id_recyclerie=Organisation.Id_recyclerie AND Lignes_vente.Id_vente=Vente.Id_Vente AND Lignes_vente.Id_catégorie=Catégorie.Id_catégorie AND date > '%s' AND date < '%s' AND Catégorie = '%s' GROUP BY Catégorie.Id_catégorie"%\
+                                        (StructList[indice2], str(dateFirst),str(dateEnd),ListCategorie[indice]))
+                ChiffreAffaire = cur.fetchall()
+                if len(ChiffreAffaire) == 0:
+                    val+=0
+                else:
+                    for chiffre in ChiffreAffaire:
+                        val+=chiffre[0]
+                        totalChiffre+= chiffre[0]
+                indice2+=1
+            if indice2 == TailleStruct:
+                    if val != 0:
+                        pageexport.write(x, y, val)
+                        x +=1
+                    else:
+                        pageexport.write(x, y, 'NR')
+                        x +=1
             indice+=1
         pageexport.write(x+1,y,totalChiffre)
         y +=1
@@ -309,17 +343,26 @@ def export(listCat, jour1, mois1, an1, jour2, mois2, an2, StructList, chk1, chk2
         pageexport.write(4,y,"Nombre d'objet collecté")
         x = 5 # indice pour la ligne dans le fichier xls
         while (indice != TailleCat):
-            cur.execute("SELECT count(Id_Produit)*nombre, Catégorie FROM Produit, Arrivage, Catégorie WHERE Produit.Id_catégorie=Catégorie.Id_catégorie AND Produit.Id_arrivage=Arrivage.Id_arrivage AND Produit.Id_recyclerie = 1 AND date > '%s' AND date < '%s' AND Catégorie = '%s' GROUP BY Catégorie.Id_catégorie"%\
-                                (str(dateFirst),str(dateEnd),ListCategorie[indice]))
-            NombreCollect = cur.fetchall()
-            if len(NombreCollect) == 0:
-                pageexport.write(x, y, "NR")
-                x +=1
-            else:
-                for nbrC in NombreCollect:
-                    pageexport.write(x, y, nbrC[0])
-                    totalNbrC+=nbrC[0]
-                x +=1
+            indice2 = 0 # variable pour l'indexation selon la taille de la liste des structures
+            val = 0 # variable qui va recevoir les valeurs de la requete
+            while (indice2 != TailleStruct):
+                cur.execute("SELECT count(Id_Produit)*nombre, Catégorie FROM Produit, Arrivage, Catégorie, Organisation WHERE Recyclerie = '%s' AND Produit.Id_recyclerie=Organisation.Id_recyclerie AND Produit.Id_catégorie=Catégorie.Id_catégorie AND Produit.Id_arrivage=Arrivage.Id_arrivage AND date > '%s' AND date < '%s' AND Catégorie = '%s' GROUP BY Catégorie.Id_catégorie"%\
+                                    (StructList[indice2], str(dateFirst),str(dateEnd),ListCategorie[indice]))
+                NombreCollect = cur.fetchall()
+                if len(NombreCollect) == 0:
+                    val+=0
+                else:
+                    for nbrC in NombreCollect:
+                        val+=nbrC[0]
+                        totalNbrC+=nbrC[0]
+                indice2+=1
+            if indice2 == TailleStruct:
+                    if val != 0:
+                        pageexport.write(x, y, val)
+                        x +=1
+                    else:
+                        pageexport.write(x, y, 'NR')
+                        x +=1
             indice+=1
         pageexport.write(x+1,y,totalNbrC)
         y +=1
@@ -329,21 +372,44 @@ def export(listCat, jour1, mois1, an1, jour2, mois2, an2, StructList, chk1, chk2
         pageexport.write(4,y,"Nombre d'objet vendu")
         x = 5 # indice pour la ligne dans le fichier xls
         while (indice != TailleCat):
-            cur.execute("SELECT count(Id_ligne_vente), Catégorie FROM Lignes_vente, Vente, Catégorie WHERE Lignes_vente.Id_catégorie=Catégorie.Id_catégorie AND Vente.Id_Vente=Lignes_vente.Id_vente AND Vente.Id_recyclerie = 1 AND date > '%s' AND date < '%s' AND Catégorie = '%s' GROUP BY Catégorie.Id_catégorie"%\
-                                (str(dateFirst),str(dateEnd),ListCategorie[indice]))
-            NombreVendu = cur.fetchall()
-            if len(NombreVendu) == 0:
-                pageexport.write(x, y, "NR")
-                x +=1
-            else:
-                for nbrV in NombreVendu:
-                    pageexport.write(x, y, nbrV[0])
-                    totalNbrV+=nbrV[0]
-                x +=1
+            indice2 = 0 # variable pour l'indexation selon la taille de la liste des structures
+            val = 0 # variable qui va recevoir les valeurs de la requete
+            while (indice2 != TailleStruct):
+                cur.execute("SELECT count(Id_ligne_vente), Catégorie FROM Lignes_vente, Vente, Catégorie, Organisation WHERE Recyclerie = '%s' AND Vente.Id_recyclerie=Organisation.Id_recyclerie AND Lignes_vente.Id_catégorie=Catégorie.Id_catégorie AND Vente.Id_Vente=Lignes_vente.Id_vente AND date > '%s' AND date < '%s' AND Catégorie = '%s' GROUP BY Catégorie.Id_catégorie"%\
+                                    (StructList[indice2], str(dateFirst),str(dateEnd),ListCategorie[indice]))
+                NombreVendu = cur.fetchall()
+                if len(NombreVendu) == 0:
+                    val+=0
+                else:
+                    for nbrV in NombreVendu:
+                        val+=nbrV[0]
+                        totalNbrV+=nbrV[0]
+                indice2+=1
+            if indice2 == TailleStruct:
+                    if val != 0:
+                        pageexport.write(x, y, val)
+                        x +=1
+                    else:
+                        pageexport.write(x, y, 'NR')
+                        x +=1
             indice+=1
         pageexport.write(x+1,y,totalNbrV)
         y +=1
     classeurexport.save(filename)
+    TailleFile = len(filename)
+    FileCSV = filename[:TailleFile-4]
+    with xlrd.open_workbook(filename) as wb:
+        sh = wb.sheet_by_index(0)  
+        with open(FileCSV + '.csv', 'w') as f:   
+            c = csv.writer(f)
+            for r in range(sh.nrows):
+                c.writerow(sh.row_values(r))
+    os.remove(filename)
+    try:
+        messagebox.showinfo('Exportation réussie','Votre fichier a bien été chargé')
+    except:
+        messagebox.showinfo('Exportation échouée','Votre fichier n\'a pas pu se charger')
+    SecondFen.destroy()
 
 FirstFen = Tk() # initialisation de la première fenetre
 FirstFen.title("Structure")
