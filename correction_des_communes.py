@@ -1,15 +1,17 @@
-import sqlite3
 from math import sin, cos, acos, pi
 import csv
 import unidecode
 
-fichier = "ancienne_commune.csv"
-test=csv.reader(open(fichier, "r", encoding='latin-1'), delimiter=',')
-next(test, None)
+fichier = "ancienne_commune.csv" # va lire le fichier et initialiser un dictionnaire
+csv_file=csv.reader(open(fichier, "r", encoding='latin-1'), delimiter=',')
+next(csv_file, None)
 listing_insee={}
 
 def dico_insee() :
-    for row in test:
+    '''
+    fonction qui initialise un dictionnaire contenant le nom de l'ancienne commune selon le code insee de la nouvelle commune
+    '''
+    for row in csv_file:
         try :
             a=row[3]
             if a.find("'") :
@@ -42,15 +44,22 @@ def distanceGPS(latA, longA, latB, longB):
     # distance entre les 2 points, comptée sur un arc de grand cercle
     return S*RT
 
-def correction(connect, curSQL, ID, LONG, LATIT):
+def correction(curSQL, ID, LONG, LATIT):
+    '''
+    fonction qui va corriger les communes sans code insee
 
-    curSQL.execute("SELECT Commune, Code_Postal FROM Commune WHERE Id_Insee = 'None' AND Id_Recyclerie = ?", (ID,))
+    Arguments:
+        curSQL {cursor} -- curseur de la base sql
+        ID {int} -- id de la recyclerie dans la base sql
+        LONG {float} -- longitude de la commune
+        LATIT {float} -- latitude de la commune
+    '''
+    curSQL.execute("SELECT Commune FROM Commune WHERE Id_Insee = 'None' AND Id_Recyclerie = ?", (ID,))
     Comm = curSQL.fetchall()
 
     dico_insee()
     if not Comm:
         print('Il n\'y a pas de commune à corriger')
-        connect.close()
     else:
         print('Commune sans code insee trouvé !\nCorrection en cours...')
         for row in Comm:
@@ -62,26 +71,25 @@ def correction(connect, curSQL, ID, LONG, LATIT):
             if id_insee != 'None':
                 curSQL.execute("UPDATE Commune SET Id_Insee = (?) WHERE Commune = (?) AND Id_Recyclerie = ?",(id_insee, row[0], ID,))
             else:
-                Code = row[1]
-                j = str(Code)
-                j = j[:2] + '%'
-                string = row[0][:8] + '%'
-                curSQL.execute("SELECT Longitude, Latitude FROM Insee WHERE Commune LIKE '%s' AND Code LIKE '%s'" %\
-                                (string, j))
+                NbrCaract = round(len(row[0])/2)
+                string = row[0][:NbrCaract] + '%'
+                curSQL.execute("SELECT Longitude, Latitude FROM Insee WHERE Commune LIKE '%s'" %\
+                                (string))
                 listGPS = curSQL.fetchall()
                 for ligne in listGPS:
                     latA = deg2rad(ligne[0]) # Nord
                     longA = deg2rad(ligne[1]) # Est
-                    # cooordonnées GPS en radians du 2ème point (ici, brive la gaillarde)
+                    # cooordonnées GPS en radians du 2ème point
                     latB = deg2rad(LONG) # Nord
                     longB = deg2rad(LATIT) # Est
             
                     dist = distanceGPS(latA, longA, latB, longB)
-                    verif = int(dist)
+                    verif = int(dist) # distance en mètre
                     if verif < 49000:
-                        curSQL.execute("SELECT Id_Insee FROM Insee WHERE Longitude = ? AND Latitude = ?", (ligne[0], ligne[1]))
-                        id_insee = curSQL.fetchone()
-                        curSQL.execute("UPDATE Commune SET Id_Insee = (?) WHERE Commune = (?) AND Id_Recyclerie = ?",(id_insee[0], row[0], ID,))
+                        curSQL.execute("SELECT Id_Insee FROM Insee WHERE Longitude = '%s' AND Latitude = '%s'" %\
+                                            (ligne[0], ligne[1]))
+                        id_insee = curSQL.fetchone() [0]
+                        curSQL.execute("UPDATE Commune SET Id_Insee = (?) WHERE Commune = (?) AND Id_Recyclerie = ?",(id_insee, row[0], ID,))
                     else:
                         curSQL.execute("UPDATE Commune SET Id_Insee = (?) WHERE Commune = (?) AND Id_Recyclerie = ?",(0, row[0], ID,))             
 
