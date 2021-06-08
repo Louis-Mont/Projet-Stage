@@ -5,9 +5,7 @@ class State:
 
     def __init__(self, stateyes='normal', stateno='disabled'):
         """
-        Generates the two component of the state : a enable and disable value
-        :param stateyes:
-        :param stateno:
+        Generates the two component of the state : an enable and disable value
         """
         self._yes = stateyes
         self._no = stateno
@@ -25,6 +23,7 @@ class State:
         """
         Configures various object that can have a different value
         :param confd_dflt: Dictionary { key : the object to be configured, value : bool default value}
+        :type confd_dflt: dict
         """
         for c, i in confd_dflt.items():
             self.config(c, i)
