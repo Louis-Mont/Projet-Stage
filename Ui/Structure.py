@@ -2,13 +2,12 @@ from Ui import Ui
 from tkinter import Label, Checkbutton, BooleanVar, Button, Listbox, Entry, END, filedialog
 from tkinter import ttk
 
-
-def _state(state):
-    return 'normal' if state else 'disabled'
+from Ui.types.State import State
 
 
 class Structure(Ui):
     CHOOSE_STRUCT = "Choississez la/les structure(s)"
+    STATE = State('normal', 'disabled')
 
     def __init__(self, frame, next_window, list_rec_box=None):
         """
@@ -34,7 +33,7 @@ class Structure(Ui):
         self.chk_struct = chk_struct
 
         # combobox qui récupère les recycleries comme valeur
-        combo_struct = ttk.Combobox(frame, values=list_rec_box, width=28, state='disabled')
+        combo_struct = ttk.Combobox(frame, values=list_rec_box, width=28, state=self.STATE.no)
         combo_struct.set(self.CHOOSE_STRUCT)  # valeur par défaut du combobox
         combo_struct.grid(row=1, column=2)
         self.combo_struct = combo_struct
@@ -42,12 +41,12 @@ class Structure(Ui):
         # bouton qui ajoute la recylerie sélectionnée du combobox dans la listbox
         btn_add = Button(frame, text='Ajouter',
                          command=lambda: self.add(list_struct, combo_struct, list_rec_box, self.CHOOSE_STRUCT),
-                         state='disabled')
+                         state=self.STATE.no)
         btn_add.grid(row=1, column=3)
         self.btn_add = btn_add
 
         # bouton qui supprime la recylerie sélectionnée dans la listbox
-        btn_del = Button(frame, text='Supprimer', command=lambda: self.delete(list_struct), state='disabled')
+        btn_del = Button(frame, text='Supprimer', command=lambda: self.delete(list_struct), state=self.STATE.no)
         btn_del.grid(row=1, column=4, padx=5)
         self.btn_del = btn_del
 
@@ -70,7 +69,7 @@ class Structure(Ui):
         self.chk_insee_one = chk_insee_one
         self.chk_one = chk_one
 
-        entry_insee = Entry(frame, state='disabled')  # désactivé tant que la checkbox n'est pas cochée
+        entry_insee = Entry(frame, state=self.STATE.no)  # désactivé tant que la checkbox n'est pas cochée
         entry_insee.grid(row=3, column=3, padx=10)
         self.entry_insee = entry_insee
 
@@ -82,7 +81,7 @@ class Structure(Ui):
         self.chk_many = chk_many
 
         btn_insee = Button(frame, text='Importer votre fichier', command=lambda: self.file_insee(),
-                           state='disabled')  # désactivé tant que la checkbox n'est pas cochée
+                           state=self.STATE.no)  # désactivé tant que la checkbox n'est pas cochée
         btn_insee.grid(row=4, column=3)
         self.btn_insee = btn_insee
 
@@ -104,21 +103,19 @@ class Structure(Ui):
         """
         # state = 'normal' if self.chk_struct_val.get() else 'disabled'
         for s in [self.combo_struct, self.btn_add, self.btn_del]:
-            s.config(state=_state(self.chk_struct_val.get()))
+            self.STATE.config(s, self.chk_struct_val.get())
 
     def is_chk_one(self):
         """
         fonction qui change l'état des widgets en lien avec 1 code insee
         """
-        self.entry_insee.config(state=_state(self.chk_insee_one.get()))
-        self.chk_many.config(state=_state(not self.chk_insee_one.get()))
+        self.STATE.configs({self.entry_insee: self.chk_insee_one.get(), self.chk_many: not self.chk_insee_one.get()})
 
     def is_chk_many(self):
         """
         fonction qui change l'état des widgets en lien avec plusieurs codes insee
         """
-        self.btn_insee.config(state=_state(self.chk_insee_many.get()))
-        self.chk_one.config(state=_state(not self.chk_insee_many.get()))
+        self.STATE.configs({self.btn_insee: self.chk_insee_many.get(), self.chk_one: not self.chk_insee_many.get()})
         if not self.chk_insee_many.get():
             self.list_insee.delete(0, END)
             self.label_file.config(text='')

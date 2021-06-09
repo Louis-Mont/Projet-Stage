@@ -3,12 +3,12 @@ class State:
     Generates a state that can be used in the configuration of tkinter objects
     """
 
-    def __init__(self, stateyes='normal', stateno='disabled'):
+    def __init__(self, stateyes, stateno):
         """
         Generates the two component of the state : an enable and disable value
         """
-        self._yes = stateyes
-        self._no = stateno
+        self.yes = stateyes
+        self.no = stateno
         self.val = True
 
     def config(self, c, dflt=True):
@@ -29,4 +29,4 @@ class State:
             self.config(c, i)
 
     def _state(self, state):
-        return self._yes if state else self._no
+        return self.yes if state else self.no
