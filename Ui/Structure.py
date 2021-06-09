@@ -11,8 +11,7 @@ class Structure(Ui):
 
     def __init__(self, frame, next_window, list_rec_box=None):
         """
-        :param next_window: The function used to go to the next window
-        :type next_window: function
+        :param next_window: The function or lambda expression used to go to the next window
         :param list_rec_box: liste des structures
         :type list_rec_box: list
         """
