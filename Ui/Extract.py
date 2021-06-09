@@ -19,6 +19,18 @@ class Extract(Ui):
         return cbb
 
     def __init__(self, frame, y_bdd, export, list_struct=None, list_cat_box=None, list_modal_combo=None):
+        """
+        :param y_bdd: the lowest year present in the BDD
+        :type y_bdd: int
+        :param export: The function used to extract the data when the button "Extract" is clicked
+        :type export: function
+        :param list_struct: liste des structures
+        :type list_struct: list
+        :param list_cat_box: liste des categories
+        :type list_cat_box: list
+        :param list_modal_combo: liste des origines des arrivages, sans doublons
+        :type list_modal_combo: list
+        """
         super().__init__(frame, "Options d'importation")
 
         if list_cat_box is None:
@@ -55,7 +67,7 @@ class Extract(Ui):
         days = dates(1, 32)
         months = dates(1, 13)
         year = int(datetime.date.today().year)
-        years = [i for i in range(int(y_bdd), year + 1)]
+        years = [i for i in range(y_bdd, year + 1)]
 
         label_start = Label(frame, text="Choisissez la date de début :")
         label_start.grid(row=2, column=1, padx=10)
@@ -63,7 +75,7 @@ class Extract(Ui):
         label_end.grid(row=3, column=1, pady=10)
         choose_day_start = self.date_combo(days, 2, 2, '01')
         choose_month_start = self.date_combo(months, 2, 3, '01')
-        choose_year_start = self.date_combo(years, 2, 4, int(y_bdd))
+        choose_year_start = self.date_combo(years, 2, 4, y_bdd)
         choose_day_end = self.date_combo(days, 3, 2, '31')
         choose_month_end = self.date_combo(months, 3, 3, 12)
         choose_year_end = self.date_combo(years, 3, 4, year)
