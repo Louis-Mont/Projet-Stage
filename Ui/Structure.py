@@ -8,15 +8,17 @@ def _state(state):
 
 
 class Structure(Ui):
-    ALL = "Tout"
     CHOOSE_STRUCT = "Choississez la/les structure(s)"
 
-    def __init__(self, frame, list_rec_box=None):
+    def __init__(self, frame, next_window, list_rec_box=None):
         """
+        :param next_window: The function used to go to the next window
+        :type next_window: function
         :param list_rec_box: liste des structures
         :type list_rec_box: list
         """
         super().__init__(frame, "Structure")
+        self.next_window = next_window
         if list_rec_box is None:
             list_rec_box = []
         self.list_rec_box = list_rec_box
@@ -38,12 +40,14 @@ class Structure(Ui):
         self.combo_struct = combo_struct
 
         # bouton qui ajoute la recylerie sélectionnée du combobox dans la listbox
-        btn_add = Button(frame, text='Ajouter', command=lambda: self.add_struct(), state='disabled')
+        btn_add = Button(frame, text='Ajouter',
+                         command=lambda: self.add(list_struct, combo_struct, list_rec_box, self.CHOOSE_STRUCT),
+                         state='disabled')
         btn_add.grid(row=1, column=3)
         self.btn_add = btn_add
 
         # bouton qui supprime la recylerie sélectionnée dans la listbox
-        btn_del = Button(frame, text='Supprimer', command=lambda: self.del_struct(), state='disabled')
+        btn_del = Button(frame, text='Supprimer', command=lambda: self.delete(list_struct), state='disabled')
         btn_del.grid(row=1, column=4, padx=5)
         self.btn_del = btn_del
 
@@ -91,7 +95,7 @@ class Structure(Ui):
         self.list_insee = list_insee
 
         # passe à la prochaine fenêtre et prends en compte les données inscrites de la première fenêtre
-        btn_next = Button(frame, text='Suivant', command=lambda: new_window())
+        btn_next = Button(frame, text='Suivant', command=lambda: next_window())
         btn_next.grid(row=6, column=5, padx=40, pady=20)
 
     def is_chk_struct(self):
@@ -118,29 +122,6 @@ class Structure(Ui):
         if not self.chk_insee_many.get():
             self.list_insee.delete(0, END)
             self.label_file.config(text='')
-
-    def add_struct(self):
-        """
-        fonction pour le bouton ajouter des structures
-        """
-        list_files = self.list_struct.get(0, END)
-        value = self.combo_struct.get()
-        if self.combo_struct.get() == self.ALL:
-            for struct in self.list_rec_box:
-                if struct not in list_files:
-                    self.list_struct.insert(END, struct)
-            idx = self.list_struct.get(0, END).index(self.ALL)
-            self.list_struct.delete(idx)
-
-        if value not in list_files and value != self.ALL and value != self.CHOOSE_STRUCT:
-            self.list_struct.insert(END, value)
-
-    def del_struct(self):
-        """
-        fonction pour le bouton supprimer des structures
-        """
-        item_selected = self.list_struct.curselection()
-        self.list_struct.delete(item_selected[0])
 
     def file_insee(self):
         """
