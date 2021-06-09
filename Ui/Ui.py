@@ -31,5 +31,8 @@ class Ui:
             t_select.insert(END, value)
 
     def delete(self, t_select):
+        """
+        :param t_select: listbox containing all selected items, which we removed the selected one
+        """
         selected_item = t_select.curselection()
         t_select.delete(selected_item[0])
