@@ -3,6 +3,8 @@ from Ui import Ui
 from tkinter import Label, Button, Listbox, END, Checkbutton, BooleanVar
 from tkinter import ttk
 
+from Ui.types.Modal import Modal
+
 
 def dates(ll, ul):
     return [str(i).zfill(2) for i in range(ll, ul)]
@@ -85,68 +87,64 @@ class Extract(Ui):
         label_qty.grid(row=4, column=0, ipady=40, padx=5)
 
         label_modal = Label(frame, text='Modalité(s) :')
+        self.label_modal = label_modal
+
         combo_modal = ttk.Combobox(frame, values=list_modal_combo, width=25)
         combo_modal.set(self.CHOOSE_MODAL)
+        self.combo_modal = combo_modal
+
         btn_add_modal = Button(frame, text='Ajouter',
-                               command=lambda: self.add(list_box_modal, combo_modal, list_modal_combo,
+                               command=lambda: self.add(listbox_modal, combo_modal, list_modal_combo,
                                                         self.CHOOSE_MODAL))
-        btn_del_modal = Button(frame, text='Supprimer', command=lambda: self.delete(list_box_modal))
-        list_box_modal = Listbox(frame, width=30)
+        self.btn_add_modal = btn_add_modal
 
-        chk_val_w_coll = BooleanVar(value=False)
-        chk_val_w_sold = BooleanVar(value=False)
-        chk_val_revenue = BooleanVar(value=False)
-        chk_val_n_coll = BooleanVar(value=False)
-        chk_val_n_sold = BooleanVar(value=False)
+        btn_del_modal = Button(frame, text='Supprimer', command=lambda: self.delete(listbox_modal))
+        self.btn_del_modal = btn_del_modal
 
-        chkbox1 = Checkbutton(frame, text='Poids collecté (en Kg)', var=chk_val_w_coll,
-                              command=lambda: self.modalite_collect(chk_val_w_coll, chk_val_n_coll, combo_modal,
-                                                                    label_modal,
-                                                                    btn_add_modal, btn_del_modal, list_box_modal))
-        chkbox1.grid(row=5, column=1)
-        chkbox2 = Checkbutton(frame, text='Poids vendu (en Kg)', var=chk_val_w_sold)
-        chkbox2.grid(row=5, column=2)
-        chkbox3 = Checkbutton(frame, text='Chiffre d\'affaire (en €)', var=chk_val_revenue)
-        chkbox3.grid(row=5, column=3)
-        chkbox4 = Checkbutton(frame, text='Nombre d\'objet collecté', var=chk_val_n_coll,
-                              command=lambda: self.modalite_collect(chk_val_w_coll, chk_val_n_coll, combo_modal,
-                                                                    label_modal,
-                                                                    btn_add_modal, btn_del_modal, list_box_modal))
-        chkbox4.grid(row=6, column=1)
-        chkbox5 = Checkbutton(frame, text='Nombre d\'objet vendu', var=chk_val_n_sold)
-        chkbox5.grid(row=6, column=2)
+        listbox_modal = Listbox(frame, width=30)
+        self.listbox_modal = listbox_modal
+
+        # elem : col
+        self._opts = {
+            label_modal: 1,
+            combo_modal: 2,
+            btn_add_modal: 3,
+            btn_del_modal: 4,
+            listbox_modal: 5
+        }
+
+        w_coll = Modal(frame, 'Poids collecté (en Kg)', False)
+        w_sold = Modal(frame, 'Poids vendu (en Kg)', False)
+        revenue = Modal(frame, 'Chiffre d\'affaire (en €)', False)
+        n_coll = Modal(frame, 'Nombre d\'objet collecté', False)
+        n_sold = Modal(frame, 'Nombre d\'objet vendu', False)
+
+        w_coll.chk_btn.configure(command=lambda: self.show_modal_opt(w_coll.chk_var.get()))
+        w_coll.chk_btn.grid(row=5, column=1)
+
+        w_sold.chk_btn.grid(row=5, column=2)
+
+        revenue.chk_btn.grid(row=5, column=3)
+
+        n_coll.chk_btn.configure(command=lambda: self.show_modal_opt(n_coll.chk_var.get()))
+        n_coll.chk_btn.grid(row=6, column=1)
+
+        n_sold.chk_btn.grid(row=6, column=2)
 
         btn_export = Button(frame, text='Exporter',
                             command=lambda: export(frame, list_cat, choose_day_start, choose_month_start,
                                                    choose_year_start,
                                                    choose_day_end,
-                                                   choose_month_end, choose_year_end, list_struct, chk_val_w_coll,
-                                                   chk_val_w_sold,
-                                                   chk_val_revenue,
-                                                   chk_val_n_coll, chk_val_n_sold, list_box_modal))
+                                                   choose_month_end, choose_year_end, list_struct, w_coll.chk_var,
+                                                   w_sold.chk_var,
+                                                   revenue.chk_var,
+                                                   n_coll.chk_var, n_sold.chk_var, listbox_modal))
         btn_export.grid(row=10, column=5, padx=40, pady=20)
 
-    def modalite_collect(self, chk_value1, chk_value4, combo_modalite, label_modalite, btn_add_modal, btn_del_modal,
-                         list_box_modal):
-        """
-        fonction qui affiche les widgets en lien avec les modalités
-        si les checkbox des collectes sont cochées sinon les cachent
-        """
-        if chk_value1.get():
-            combo_modalite.grid(row=7, column=2)
-            label_modalite.grid(row=7, column=1)
-            btn_add_modal.grid(row=7, column=3)
-            btn_del_modal.grid(row=7, column=4)
-            list_box_modal.grid(row=7, column=5)
-        elif chk_value4.get():
-            combo_modalite.grid(row=7, column=2)
-            label_modalite.grid(row=7, column=1)
-            btn_add_modal.grid(row=7, column=3)
-            btn_del_modal.grid(row=7, column=4)
-            list_box_modal.grid(row=7, column=5)
+    def show_modal_opt(self, show):
+        if show:
+            for k, v in self._opts.items():
+                k.grid(row=7, column=v)
         else:
-            combo_modalite.grid_forget()
-            label_modalite.grid_forget()
-            btn_add_modal.grid_forget()
-            btn_del_modal.grid_forget()
-            list_box_modal.grid_forget()
+            for k, v in self._opts.items():
+                k.grid_forget()
