@@ -11,10 +11,10 @@ class DatabaseSQLite(Database.Database):
         Connects to a DSN
         :param path: The path where the file is
         :type path: str
-        :return: True if the connection is successful, False if it isn't
+        :return: Logs,True|False if connection is successful or not
         """
         try:
-            self.DB = sqlite3.connect(f"DSN={path};")
-            return True
-        except sqlite3.Error:
-            return False
+            self.DB = sqlite3.connect(path)
+            return "Connection successful", True
+        except sqlite3.Error as Er:
+            return f"{Er.args[1]}", False
