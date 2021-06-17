@@ -1,8 +1,7 @@
-import Ui.Ui
+from user_interface import Ui
 from tkinter import Label, Checkbutton, BooleanVar, Button, Listbox, Entry, END, filedialog
 from tkinter import ttk
-
-from Ui.types.State import State
+from user_interface.types.State import State
 
 
 class Structure(Ui.Ui):
