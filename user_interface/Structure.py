@@ -1,11 +1,11 @@
-from Ui import Ui
+import Ui.Ui
 from tkinter import Label, Checkbutton, BooleanVar, Button, Listbox, Entry, END, filedialog
 from tkinter import ttk
 
 from Ui.types.State import State
 
 
-class Structure(Ui):
+class Structure(Ui.Ui):
     CHOOSE_STRUCT = "Choississez la/les structure(s)"
     STATE = State('normal', 'disabled')
 

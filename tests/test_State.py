@@ -1,7 +1,7 @@
 from tkinter import Button, Label
 from unittest import TestCase
 
-from Ui.types.State import State
+from user_interface.types.State import State
 
 
 class TestState(TestCase):
