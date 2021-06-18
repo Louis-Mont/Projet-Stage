@@ -3,7 +3,7 @@ from Ui import Ui
 from tkinter import Label, Button, Listbox, END, Checkbutton, BooleanVar
 from tkinter import ttk
 
-from Ui.types.Modal import Modal
+from user_interface.types.Modal import Modal
 
 
 def dates(ll, ul):
