@@ -1,6 +1,6 @@
 import datetime
 from Ui import Ui
-from tkinter import Label, Button, Listbox, END, Checkbutton, BooleanVar
+from tkinter import Label, Button, Listbox
 from tkinter import ttk
 
 from user_interface.types.Modal import Modal
@@ -20,7 +20,7 @@ class Extract(Ui):
         cbb.set(start_val)
         return cbb
 
-    def __init__(self, frame, y_bdd, export, list_struct=None, list_cat_box=None, list_modal_combo=None):
+    def __init__(self, frame, y_bdd, export, list_struct=None, list_cat=None, list_modal_combo=None):
         """
         :param y_bdd: the lowest year present in the BDD
         :type y_bdd: int
@@ -28,16 +28,16 @@ class Extract(Ui):
         :type export: function
         :param list_struct: liste des structures
         :type list_struct: list
-        :param list_cat_box: liste des categories
-        :type list_cat_box: list
+        :param list_cat: liste des categories
+        :type list_cat: list
         :param list_modal_combo: liste des origines des arrivages, sans doublons
         :type list_modal_combo: list
         """
         super().__init__(frame, "Options d'importation")
 
-        if list_cat_box is None:
-            list_cat_box = []
-        list_cat_box.insert(0, self.ALL)
+        if list_cat is None:
+            list_cat = []
+        list_cat.insert(0, self.ALL)
 
         if list_modal_combo is None:
             list_modal_combo = []
@@ -47,13 +47,13 @@ class Extract(Ui):
         label_cat = Label(frame, text='Catégorie :', font=60)
         label_cat.grid(row=0, column=0, ipady=30)
 
-        combo_cat = ttk.Combobox(frame, values=list_cat_box, width=29)
+        combo_cat = ttk.Combobox(frame, values=list_cat, width=29)
         combo_cat.set(self.CHOOSE_CAT)
         combo_cat.grid(row=0, column=1)
         combo_cat.bind("<<ComboboxSelected>>", lambda e: combo_cat.get())
 
         btn_add = Button(frame, text='Ajouter',
-                         command=lambda: self.add(list_cat, combo_cat, list_cat_box, self.CHOOSE_CAT))
+                         command=lambda: self.add(list_cat, combo_cat, list_cat, self.CHOOSE_CAT))
         btn_add.grid(row=0, column=2)
 
         btn_del = Button(frame, text='Supprimer', command=lambda: self.delete(list_cat))
@@ -133,11 +133,8 @@ class Extract(Ui):
 
         btn_export = Button(frame, text='Exporter',
                             command=lambda: export(frame, list_cat, choose_day_start, choose_month_start,
-                                                   choose_year_start,
-                                                   choose_day_end,
-                                                   choose_month_end, choose_year_end, list_struct, w_coll.chk_var,
-                                                   w_sold.chk_var,
-                                                   revenue.chk_var,
+                                                   choose_year_start, choose_day_end, choose_month_end, choose_year_end,
+                                                   list_struct, w_coll.chk_var, w_sold.chk_var, revenue.chk_var,
                                                    n_coll.chk_var, n_sold.chk_var, listbox_modal))
         btn_export.grid(row=10, column=5, padx=40, pady=20)
 
