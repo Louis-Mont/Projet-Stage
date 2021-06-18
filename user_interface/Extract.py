@@ -20,7 +20,7 @@ class Extract(Ui):
         cbb.set(start_val)
         return cbb
 
-    def __init__(self, frame, y_bdd, export, list_struct=None, list_cat=None, list_modal_combo=None):
+    def __init__(self, frame, y_bdd, export, list_struct=None, list_cat=None, list_origin=None):
         """
         :param y_bdd: the lowest year present in the BDD
         :type y_bdd: int
@@ -30,8 +30,8 @@ class Extract(Ui):
         :type list_struct: list
         :param list_cat: liste des categories
         :type list_cat: list
-        :param list_modal_combo: liste des origines des arrivages, sans doublons
-        :type list_modal_combo: list
+        :param list_origin: liste des origines des arrivages, sans doublons
+        :type list_origin: list
         """
         super().__init__(frame, "Options d'importation")
 
@@ -39,9 +39,9 @@ class Extract(Ui):
             list_cat = []
         list_cat.insert(0, self.ALL)
 
-        if list_modal_combo is None:
-            list_modal_combo = []
-        list_modal_combo.insert(0, self.ALL)
+        if list_origin is None:
+            list_origin = []
+        list_origin.insert(0, self.ALL)
 
         # Partie catégorie :
         label_cat = Label(frame, text='Catégorie :', font=60)
@@ -89,12 +89,12 @@ class Extract(Ui):
         label_modal = Label(frame, text='Modalité(s) :')
         self.label_modal = label_modal
 
-        combo_modal = ttk.Combobox(frame, values=list_modal_combo, width=25)
+        combo_modal = ttk.Combobox(frame, values=list_origin, width=25)
         combo_modal.set(self.CHOOSE_MODAL)
         self.combo_modal = combo_modal
 
         btn_add_modal = Button(frame, text='Ajouter',
-                               command=lambda: self.add(listbox_modal, combo_modal, list_modal_combo,
+                               command=lambda: self.add(listbox_modal, combo_modal, list_origin,
                                                         self.CHOOSE_MODAL))
         self.btn_add_modal = btn_add_modal
 
