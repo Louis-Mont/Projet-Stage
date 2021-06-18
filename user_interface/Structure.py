@@ -16,6 +16,7 @@ class Structure(Ui.Ui):
         """
         super().__init__(frame, "Structure")
         self.next_window = next_window
+        # Création liste recycleries
         if list_rec_box is None:
             list_rec_box = []
         self.list_rec_box = list_rec_box

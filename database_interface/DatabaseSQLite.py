@@ -1,8 +1,8 @@
-from . import Database
+from database_interface.Database import Database
 import sqlite3
 
 
-class DatabaseSQLite(Database.Database):
+class DatabaseSQLite(Database):
     def __init__(self):
         super().__init__()
 
