@@ -8,6 +8,7 @@ class Modal:
 
     def __init__(self, frame, text, val, command=None):
         """
+        :type text: str
         :type val: bool
         """
         self.chk_var = BooleanVar(value=val)
