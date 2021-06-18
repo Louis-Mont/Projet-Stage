@@ -108,5 +108,7 @@ class Database(ABC):
         :rtype: str
         """
         cur = self.DB.cursor()
+        where = "" if conditions is None else f" WHERE {kcv(conditions, '=', 'AND')}"
         cur.execute(
-            f"SELECT {'DISTINCT' if distinct else ''}{l_to_str(cols)} FROM {table} WHERE {kcv(conditions, '=', 'AND')}")
+            f"SELECT {'DISTINCT ' if distinct else ''}{l_to_str(cols)} FROM {table}{where}")
+        return cur.fetchall()
