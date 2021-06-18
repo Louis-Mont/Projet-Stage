@@ -29,7 +29,7 @@ class Database(ABC):
         else:
             return False
 
-    def _df(self, table, n_conditions=None):
+    def _df(self, table, n_conditions):
         """
         :type table: str
         :type n_conditions: tuple
@@ -42,12 +42,12 @@ class Database(ABC):
 
     def ii(self, table, values, conditions=None):
         """
-        Inserts into the table the values using cur or Update if there is conditions
+        Inserts into the table the cols using cur or Update if there is conditions
         :param table: The table you're inserting into
         :type table: str
-        :param values: The keys represent the titles and values the values inserted into said columns
+        :param values: The keys represent the titles and cols the cols inserted into said columns
         :type values: dict
-        :param conditions: The names of the columns you're checking in n,0 and their values in n,1
+        :param conditions: The names of the columns you're checking in n,0 and their cols in n,1
         :type conditions: dict
         :return: False if there is no connection, True if the Insert Into/Update is successful
         """
@@ -58,7 +58,7 @@ class Database(ABC):
         else:
             return False
 
-    def _ii(self, table: str, values: dict, conditions: dict = None):
+    def _ii(self, table: str, values: dict, conditions: dict):
         """
         :type table: str
         :type values: dict
@@ -80,3 +80,33 @@ class Database(ABC):
             # debug = f"UPDATE {table} SET {kcv(u_values, '=')} WHERE {kcv(conditions, '=', ' AND ')}"
             cur.execute(
                 f"UPDATE {table} SET {kcv(u_values, '=')} WHERE {kcv(conditions, '=', ' AND ')}")
+
+    def sf(self, table, cols, distinct=False, conditions=None):
+        """
+        Selects from the table the cols, distinct or not, depending the conditions
+        :param table: The table you're selecting from
+        :type table: str
+        :param cols: The columns where the cols are
+        :type cols: list
+        :param distinct:
+        :type distinct: bool
+        :param conditions: The names of the columns you're checking in n,0 and their cols in n,1
+        :type conditions: dict
+        :return: False if there is no connection, True if the Insert Into/Update is successful
+        """
+        if self.DB is not None:
+            return self._sf(table, cols, distinct, conditions)
+        else:
+            return False
+
+    def _sf(self, table: str, cols: list, distinct: bool, conditions: dict):
+        """
+        :type table: str
+        :type cols: list
+        :type distinct: bool
+        :type conditions: dict
+        :rtype: str
+        """
+        cur = self.DB.cursor()
+        cur.execute(
+            f"SELECT {'DISTINCT' if distinct else ''}{l_to_str(cols)} FROM {table} WHERE {kcv(conditions, '=', 'AND')}")
