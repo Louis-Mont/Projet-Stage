@@ -49,9 +49,10 @@ def next_window(frame, gdr_db):
     :type frame: Tk
     :type gdr_db: DatabaseSQLite
     """
-    frame.destroy()
+    for widgets in frame.winfo_children():
+        widgets.destroy()
     min_year = get_min_y(gdr_db)
-    ext = Extract(frame, min_year, None, None, get_cat(gdr_db), get_origin(gdr_db))
+    ext = Extract(frame, min_year, None, get_cat(gdr_db), get_origin(gdr_db))
 
     frame.mainloop()
 

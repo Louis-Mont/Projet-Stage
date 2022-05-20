@@ -4,6 +4,7 @@ from tkinter import Label, Button, Listbox
 from tkinter import ttk
 
 from user_interface.types.Modal import Modal
+from export_fun import export
 
 
 def dates(ll, ul):
@@ -20,7 +21,7 @@ class Extract(Ui):
         cbb.set(start_val)
         return cbb
 
-    def __init__(self, frame, y_bdd, export, list_struct=None, list_cat=None, list_origin=None):
+    def __init__(self, frame, y_bdd, list_struct=None, list_cat=None, list_origin=None):
         """
         :param y_bdd: the lowest year present in the BDD
         :type y_bdd: int
@@ -34,6 +35,8 @@ class Extract(Ui):
         :type list_origin: list
         """
         super().__init__(frame, "Options d'importation")
+
+        y_bdd = int(y_bdd)
 
         if list_cat is None:
             list_cat = []
@@ -53,14 +56,14 @@ class Extract(Ui):
         combo_cat.bind("<<ComboboxSelected>>", lambda e: combo_cat.get())
 
         btn_add = Button(frame, text='Ajouter',
-                         command=lambda: self.add(list_cat, combo_cat, list_cat, self.CHOOSE_CAT))
+                         command=lambda: self.add(listbox_cat, combo_cat, list_cat, self.CHOOSE_CAT))
         btn_add.grid(row=0, column=2)
 
         btn_del = Button(frame, text='Supprimer', command=lambda: self.delete(list_cat))
         btn_del.grid(row=0, column=3, padx=5)
 
-        list_cat = Listbox(frame, width=50)
-        list_cat.grid(row=0, column=5)
+        listbox_cat = Listbox(frame, width=50)
+        listbox_cat.grid(row=0, column=5)
 
         # Partie temps :
         label_time = Label(frame, text='Temps :', font=60)
@@ -132,7 +135,7 @@ class Extract(Ui):
         n_sold.chk_btn.grid(row=6, column=2)
 
         btn_export = Button(frame, text='Exporter',
-                            command=lambda: export(frame, list_cat, choose_day_start, choose_month_start,
+                            command=lambda: export(frame, listbox_cat, choose_day_start, choose_month_start,
                                                    choose_year_start, choose_day_end, choose_month_end, choose_year_end,
                                                    list_struct, w_coll.chk_var, w_sold.chk_var, revenue.chk_var,
                                                    n_coll.chk_var, n_sold.chk_var, listbox_modal))

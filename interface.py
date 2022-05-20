@@ -362,7 +362,7 @@ def export(SecondFen, list_cat, jour1, mois1, an1, jour2, mois2, an2, struct_lis
     fonction d'export du csv contenant les données demandées
 
     Arguments:
-        SecondFen {Tk} -- Deuxième fenêtre
+        frame {Tk} -- Deuxième fenêtre
         listCat {listbox} -- listbox contenant les catégories choisis
         StructList {list[str]} -- liste contenant les structures choisis
         ListBoxModal {listbox} -- listbox contenant les modalités choisis
@@ -539,7 +539,7 @@ def export(SecondFen, list_cat, jour1, mois1, an1, jour2, mois2, an2, struct_lis
         taille_modal = len(list_modal)
         y = 2
         '''
-        if chk1.get() == True:
+        if w_coll.get() == True:
             indice = 0 # variable pour l'indexation selon la taille de la liste des catégories
             pageexport.write(0,y,"Poids collecté (en kg)")
             x = 1 # indice pour la ligne dans le fichier xls
